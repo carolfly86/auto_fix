@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourceManagerImpl" format="xml" hash="3107738316">
+    <data-source source="LOCAL" name="PostgreSQL - polling_etl@localhost" uuid="97ffedc1-ec2e-4750-bb71-33cc3009bd88">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://localhost:5432/polling_etl</jdbc-url>
+      <libraries />
+    </data-source>
+  </component>
+</project>

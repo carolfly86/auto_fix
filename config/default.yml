@@ -1,0 +1,4 @@
+default:
+  database: 'polling_etl'
+  user: 'yguo'
+  password: 'gy861023'

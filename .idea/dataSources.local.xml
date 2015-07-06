@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="dataSourceStorageLocal">
+    <data-source name="PostgreSQL - polling_etl@localhost" uuid="97ffedc1-ec2e-4750-bb71-33cc3009bd88">
+      <secret-storage>master_key</secret-storage>
+      <first-sync>true</first-sync>
+      <user-name>yguo</user-name>
+    </data-source>
+  </component>
+</project>

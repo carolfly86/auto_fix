@@ -1,0 +1,16 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    json (1.8.2)
+    pg (0.18.2)
+    pg_query (0.5.0)
+      json (~> 1.8)
+    trollop (2.1.1)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  pg
+  pg_query
+  trollop
