@@ -1,30 +1,31 @@
 require 'json'
 require 'pp'
+require 'pg'
+require 'jsonpath'
 require_relative 'string_util'
+require_relative 'query_builder'
 module ReverseParseTree
-
-
 
   def ReverseParseTree.reverse(parseTree)
     distinct = parseTree['SELECT']['distinctClause']||''
-    p "Distinct: #{distinct}"
-
-    p parseTree['SELECT']['targetList'].to_a
+    #p parseTree['SELECT']['distinctClause']
+    # p "Distinct: #{distinct}"
     targetList = parseTree['SELECT']['targetList'].map do  |t|
       colNameConstr(t)['fullname']
     end.join(', ')
-    p "targetList: #{targetList}"
+    # p "targetList: #{targetList}"
 
     fromPT = parseTree['SELECT']['fromClause']
     fromClause = fromClauseConstr(fromPT)
-    p "fromClause: #{fromClause}"
+    # p "fromClause: #{fromClause}"
     wherePT = parseTree['SELECT']['whereClause']
     whereClause = whereClauseConst(wherePT)
-    p"WhereClause: #{whereClause}"
+    # p"WhereClause: #{whereClause}"
 
     query = 'SELECT '+ distinct + targetList +
             ' FROM ' + fromClause+
-            ' WHERE '+ whereClause
+             ( whereClause.length == 0? '' : ' WHERE '+ whereClause)
+            
 
   end
 
@@ -40,16 +41,16 @@ module ReverseParseTree
     rst
     # p relname
   end
-  def self.colNameConstr(t)
+  def ReverseParseTree.colNameConstr(t)
       rst = Hash.new()
       rst['col'] = t['RESTARGET']['val']['COLUMNREF'].nil? ? whereClauseConst(t['RESTARGET']['val']) : t['RESTARGET']['val']['COLUMNREF']['fields'].join('.')
-      rst['alias'] = t['RESTARGET']['name'].nil? ? '': "#{t['RESTARGET']['name']}"
-      rst['fullname'] = rst['alias'].length==0 ? rst['col'] : "#{rst['col']} AS #{rst['alias']}"
+      rst['alias'] = t['RESTARGET']['name'].nil? ? (( t['RESTARGET']['val']['COLUMNREF']['fields'].count()==1 ) ? t['RESTARGET']['val']['COLUMNREF']['fields'][0] : t['RESTARGET']['val']['COLUMNREF']['fields'][1]) : "#{t['RESTARGET']['name']}"
+      # rst['fullname'] = rst['alias'].length==0 ? rst['col'] : "#{rst['col']} AS #{rst['alias']}"
+      rst['fullname'] = "#{rst['col']} AS #{rst['alias']}"
       rst
   end
   # construct expression
   def self.exprConstr(expr)
-
     unless expr['A_CONST'].nil?
       constVal = expr['A_CONST']['val']
       #p constVal
@@ -100,15 +101,14 @@ module ReverseParseTree
     if where.nil?
       return ''
     end  
-    #pp where
     logicOpr = where.keys[0].to_s
     lexpr = where[logicOpr]['lexpr']
     rexpr = where[logicOpr]['rexpr']
 
     if logicOpr == 'AEXPR'
       op = where[logicOpr]['name'][0]
-      lexpr = exprConstr(lexpr)
-      rexpr = exprConstr(rexpr)
+      lexpr = lexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(lexpr) : exprConstr(lexpr)
+      rexpr = rexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(rexpr) : exprConstr(rexpr)
       expr = lexpr.to_s + ' '+ op +' '+ rexpr.to_s
     else
       lexpr = whereClauseConst(lexpr)
@@ -169,4 +169,6 @@ module ReverseParseTree
     end
     node
   end
+
+
 end

@@ -18,4 +18,11 @@ module QueryBuilder
                            ' END as result;'
 
     end
+    #find all cols for tbl
+    def QueryBuilder.find_all_cols(tbl)
+      query = "SELECT column_name
+              FROM information_schema.columns
+              WHERE table_name   = '#{tbl}'"
+    end
+
 end 	

@@ -8,6 +8,8 @@ require 'json'
 require_relative 'lib/query_t'
 require_relative 'lib/localizeError'
 require_relative 'lib/reverse_parsetree'
+require_relative 'lib/genetic_alg'
+require_relative 'lib/autofix'
 
 opts = Trollop::options do
   banner "Usage: " + $0 + " --script [script] "
@@ -17,20 +19,36 @@ cfg = YAML.load_file( File.join(File.dirname(__FILE__), "config/default.yml") )
 
 conn = PG::Connection.open(dbname: cfg['default']['database'], user: cfg['default']['user'], password: cfg['default']['password'])
 
-fQuery = QueryT.new(opts[:script], 'f_result', cfg)
-tQuery = QueryT.new('true.json', 't_result',cfg)
+
+fqueryJson = JSON.parse(File.read("sql/#{opts[:script]}"))
+tqueryJson = JSON.parse(File.read('sql/true.json'))
+
+fQuery = QueryT.new(fqueryJson, 'f_result')
+tQuery = QueryT.new(tqueryJson, 't_result')
 
 puts tQuery.query
 
 # generate parse tree
-ps = PgQuery.parse(fQuery.query)
+ps = PgQuery.parse(fQuery.query).parsetree[0]
 #pp ps
-#ReverseParseTree.reverse(ps.parsetree[0])
-
+#ReverseParseTree.reverse(ps)
 
 # find projection error
-localizeErr = LozalizeError.new(fQuery,tQuery, cfg)
-#projErrList = localizeErr.projErr()
-selectionErrList = localizeErr.selecionErr()
-pp selectionErrList
+ localizeErr = LozalizeError.new(fQuery,tQuery, ps)
+# projErrList = localizeErr.projErr()
+# pp projErrList
+ selectionErrList = localizeErr.selecionErr()
+ pp selectionErrList
 
+psNew = AutoFix.JoinTypeFix(selectionErrList['JoinErr'],ps)
+fQueryNew = ReverseParseTree.reverse(psNew)
+f_pkList = fqueryJson['pkList']
+fQueryNewJson = {:query => fQueryNew , :pkList => f_pkList}.to_json
+localizeErr_aftJoinFix = LozalizeError.new(fQuery,tQuery, psNew)
+selectionErrList_aftJoinFix = localizeErr_aftJoinFix.selecionErr()
+ pp selectionErrList_aftJoinFix
+
+
+
+# Auto fix using GA
+#autoFix = GeneticAlg.new(ps.parsetree[0])

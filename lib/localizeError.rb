@@ -5,15 +5,16 @@ require_relative 'reverse_parsetree'
 require_relative 'string_util'
 require_relative 'hash_util'
 require_relative 'query_builder'
+require_relative 'db_connection'
 class LozalizeError
 
-  def initialize(fQuery, tQuery, cfg)
+  def initialize(fQuery, tQuery, parseTree)
     @fQuery=fQuery
     @tQuery=tQuery
-    @cfg = cfg
-    @conn = PG::Connection.open(dbname: @cfg['default']['database'], user: @cfg['default']['user'], password: @cfg['default']['password'])
-    @ps = PgQuery.parse(@fQuery.query).parsetree[0]
-
+    #@cfg = cfg
+    #@conn = PG::Connection.open(dbname: @cfg['default']['database'], user: @cfg['default']['user'], password: @cfg['default']['password'])
+    @ps = parseTree
+    #pp @ps
     @pkJoin = ''
     pkSelectArry =[]
     pkJoinArry = []
@@ -43,12 +44,15 @@ class LozalizeError
 
     targetList.each_with_index do |node,index|
       #pp n
-      colName = node['RESTARGET']['name']||node['RESTARGET']['val']['COLUMNREF']['fields'][1]
+      col = ReverseParseTree.colNameConstr(node)
+      # node['RESTARGET']['name'] || ( node['RESTARGET']['val']['COLUMNREF']['fields'].count()==1 ) ? node['RESTARGET']['val']['COLUMNREF']['fields'][0] : node['RESTARGET']['val']['COLUMNREF']['fields'][1]
+      colName = col['alias']
       #puts colName
+      #p colName
       unless @fQuery.pkList.to_s.include? colName
         query = "select count(1) from #{@fQuery.table} f JOIN #{@tQuery.table} t ON #{@pkJoin} WHERE t.#{colName} != f.#{colName}"
         #p query
-        res = @conn.exec(query)
+        res = DBConn.exec(query)
         if (res.getvalue(0,0).to_i>0)
           #puts "index:#{index}"
           projErrList.push(index)
@@ -112,7 +116,7 @@ class LozalizeError
       relAlias = rel['alias']
       relFullName = rel['fullname']
       query = QueryBuilder.find_pk_cols(relName)
-      pkCol = @conn.exec(query)
+      pkCol = DBConn.exec(query)
       # pkList << pkCol.map{ |row| relAlias + ' '+ row['attname']}.join(', ')
       pkNull << pkCol.map{ |row| relAlias + '.'+ row['attname'] + ' is null'}.join(' AND ')
     end
@@ -134,14 +138,14 @@ class LozalizeError
     #p query
     testQuery = QueryBuilder.subset_test(query, pkQuery)
     #p query      
-    res = @conn.exec(testQuery)  
+    res = DBConn.exec(testQuery)  
     #p testQuery
     result = res[0]['result']
 
     unless result == "IS SUBSET"
       testQuery = QueryBuilder.subset_test(pkQuery, query)
     #p query      
-      res = @conn.exec(testQuery)  
+      res = DBConn.exec(testQuery)  
       #p testQuery
       result = res[0]['result']
     end
@@ -173,7 +177,7 @@ class LozalizeError
     # Unwanted rows
     query = "SELECT #{@pkSelect} FROM #{@fQuery.table} f LEFT JOIN #{@tQuery.table} t ON #{@pkJoin} where #{pkNull.gsub('f.','t.')} IS NULL"
     #p query
-    res = @conn.exec(query)
+    res = DBConn.exec(query)
     unWantedPK = pkArryGen(res)
     # Join type test
     # jointypeErr(query,'Unwanted')
@@ -186,7 +190,7 @@ class LozalizeError
     # Missing rows
     query = "SELECT #{@pkSelect.gsub('f.','t.')} FROM #{@tQuery.table} t LEFT JOIN #{@fQuery.table} f ON #{@pkJoin} where #{pkNull} IS NULL"
     #p query
-    res = @conn.exec(query)
+    res = DBConn.exec(query)
     missinPK = pkArryGen(res)
     # Join type test
     # Join condition test
@@ -233,7 +237,7 @@ class LozalizeError
         currentQuery = query +' AND ' + cond['query']
         # p type
         # p currentQuery
-        res = @conn.exec(currentQuery)
+        res = DBConn.exec(currentQuery)
         #pp res[0]['count']
         if res[0]['count'].to_i>0
           query = currentQuery

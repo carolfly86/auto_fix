@@ -1,33 +1,35 @@
 require 'json'
 require 'pg'
+require_relative 'db_connection'
+
 class QueryT
 
-  def initialize(file, table, cfg)
-    @file=file
+  def initialize(queryJson, table)
+    @queryJson=queryJson
     @table=table
-    @cfg = cfg
+   # @cfg = cfg
     @query=''
     @pkList=''
 
     createTable()
   end
   def createTable()
-    conn = PG::Connection.open(dbname: @cfg['default']['database'], user: @cfg['default']['user'], password: @cfg['default']['password'])
+    #conn = PG::Connection.open(dbname: @cfg['default']['database'], user: @cfg['default']['user'], password: @cfg['default']['password'])
 
-    jFile = JSON.parse(File.read("sql/#{@file}"))
-    @query = jFile['query']
-    @pkList=jFile['pkList']
+    #queryJson = JSON.parse(File.read("sql/#{@file}"))
+    @query = @queryJson['query']
+    @pkList= @queryJson['pkList']
     puts @query
     puts @pkList
 
     insert = @query.insert(@query.index('from'), " INTO #{@table} ")
     tblCreate =  "DROP TABLE IF EXISTS #{@table}; #{insert}"
     puts tblCreate
-    conn.exec(tblCreate)
+    DBConn.exec(tblCreate)
 
     pkCreate = "ALTER TABLE #{@table} ADD PRIMARY KEY (#{@pkList});"
     puts pkCreate
-    conn.exec(pkCreate)
+    DBConn.exec(pkCreate)
   end
   attr_reader :query
   attr_reader :pkList

@@ -34,10 +34,17 @@
            "val"=>{"COLUMNREF"=>{"fields"=>["label"], "location"=>61}},
            "location"=>61}},
         {"RESTARGET"=>
-          {"name"=>nil,
+           {"name"=>"response",
            "indirection"=>nil,
-           "val"=>{"COLUMNREF"=>{"fields"=>["a", "type"], "location"=>68}},
-           "location"=>68}}],
+           "val"=>
+            {"AEXPR"=>
+               {"name"=>["+"],
+                "lexpr"=>
+                 {"COLUMNREF"=>{"fields"=>["q", "minresponses"], "location"=>77}},
+                "rexpr"=>
+                 {"COLUMNREF"=>{"fields"=>["q", "maxresponses"], "location"=>94}},
+                "location"=>92}},
+            "location"=>76}}],
       "fromClause"=>
        [{"JOINEXPR"=>
           {"jointype"=>1,

@@ -1,3 +1,4 @@
+require 'jsonpath'
 class Hash
   def find_all_values_for(key)
     result = []
@@ -13,6 +14,9 @@ class Hash
     end
     result.compact
     #pp result.to_a
+  end
+  def find_and_update(key,value,new_value)
+    JsonPath.for(self.to_json).gsub('$..#{key}:[#{value}]') {|v| new_value }.to_hash
   end
 end
 
