@@ -19,10 +19,20 @@ module QueryBuilder
 
     end
     #find all cols for tbl
-    def QueryBuilder.find_all_cols(tbl)
-      query = "SELECT column_name
+    def QueryBuilder.find_cols_by_data_type(tbl, data_type = '')
+      query = "SELECT column_name,data_type
               FROM information_schema.columns
-              WHERE table_name   = '#{tbl}'"
+              WHERE table_name   = '#{tbl}'" 
+      unless data_type.to_s == ''
+        if data_type.kind_of?(Array)
+          dataType = data_type.map{|x| "'#{x}'"}.join(',')
+        else
+          dataType = data_type
+        end
+        dataTypeCond = "AND data_type IN (#{dataType})"
+        query = query + dataTypeCond
+      end  
+      query      
     end
 
 end 	

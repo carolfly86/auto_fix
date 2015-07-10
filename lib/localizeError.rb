@@ -11,8 +11,6 @@ class LozalizeError
   def initialize(fQuery, tQuery, parseTree)
     @fQuery=fQuery
     @tQuery=tQuery
-    #@cfg = cfg
-    #@conn = PG::Connection.open(dbname: @cfg['default']['database'], user: @cfg['default']['user'], password: @cfg['default']['password'])
     @ps = parseTree
     #pp @ps
     @pkJoin = ''
@@ -172,12 +170,13 @@ class LozalizeError
   def selecionErr
     whereErrList = []
     joinErrList = []
-    pkNull = @pkSelect.gsub(',',' IS NULL AND ')
+    # pkNull = @pkSelect.gsub(',',' IS NULL AND ')
 
-    # Unwanted rows
-    query = "SELECT #{@pkSelect} FROM #{@fQuery.table} f LEFT JOIN #{@tQuery.table} t ON #{@pkJoin} where #{pkNull.gsub('f.','t.')} IS NULL"
+    # # Unwanted rows
+    # query = "SELECT #{@pkSelect} FROM #{@fQuery.table} f LEFT JOIN #{@tQuery.table} t ON #{@pkJoin} where #{pkNull.gsub('f.','t.')} IS NULL"
     #p query
-    res = DBConn.exec(query)
+    res = find_unwanted_tuples()
+    #res = DBConn.exec(query)
     unWantedPK = pkArryGen(res)
     # Join type test
     # jointypeErr(query,'Unwanted')
@@ -188,9 +187,11 @@ class LozalizeError
 
 
     # Missing rows
-    query = "SELECT #{@pkSelect.gsub('f.','t.')} FROM #{@tQuery.table} t LEFT JOIN #{@fQuery.table} f ON #{@pkJoin} where #{pkNull} IS NULL"
-    #p query
-    res = DBConn.exec(query)
+    # query = "SELECT #{@pkSelect.gsub('f.','t.')} FROM #{@tQuery.table} t LEFT JOIN #{@fQuery.table} f ON #{@pkJoin} where #{pkNull} IS NULL"
+    # #p query
+    # res = DBConn.exec(query)
+    res = find_missing_tuples()
+
     missinPK = pkArryGen(res)
     # Join type test
     # Join condition test
@@ -254,6 +255,23 @@ class LozalizeError
   def pkCondConstr(pk)
     pk.map{|pk| pk['col']+' = '+ pk['val'].to_s.str_int_rep }.join(' AND ')
     #p pkcond
+  end
+
+  def find_unwanted_tuples()
+    pkNull = @pkSelect.gsub(',',' IS NULL AND ')
+    # Unwanted rows
+    query = "SELECT #{@pkSelect} FROM #{@fQuery.table} f LEFT JOIN #{@tQuery.table} t ON #{@pkJoin} where #{pkNull.gsub('f.','t.')} IS NULL"
+    #p query
+    res = DBConn.exec(query)
+    res
+  end
+  def find_missing_tuples()
+    pkNull = @pkSelect.gsub(',',' IS NULL AND ')
+    # Unwanted rows
+    query = "SELECT #{@pkSelect.gsub('f.','t.')} FROM #{@tQuery.table} t LEFT JOIN #{@fQuery.table} f ON #{@pkJoin} where #{pkNull} IS NULL"
+    #p query
+    res = DBConn.exec(query)
+    res
   end
 
 end

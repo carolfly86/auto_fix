@@ -13,14 +13,14 @@ module ReverseParseTree
     targetList = parseTree['SELECT']['targetList'].map do  |t|
       colNameConstr(t)['fullname']
     end.join(', ')
-    # p "targetList: #{targetList}"
+     p "targetList: #{targetList}"
 
     fromPT = parseTree['SELECT']['fromClause']
     fromClause = fromClauseConstr(fromPT)
-    # p "fromClause: #{fromClause}"
+     p "fromClause: #{fromClause}"
     wherePT = parseTree['SELECT']['whereClause']
     whereClause = whereClauseConst(wherePT)
-    # p"WhereClause: #{whereClause}"
+     p "WhereClause: #{whereClause}"
 
     query = 'SELECT '+ distinct + targetList +
             ' FROM ' + fromClause+
@@ -31,6 +31,7 @@ module ReverseParseTree
 
   # construct relname from relname and rel alias
   def ReverseParseTree.relnameConstr(rel)
+    #pp rel
     #pp rel['RANGEVAR']['alias']
     relalias =  rel['alias'].nil? ? '': "#{rel['alias']['ALIAS']['aliasname']}"
     relname = rel['relname']#+relalias
@@ -117,7 +118,9 @@ module ReverseParseTree
 
       expr = ( logicOpr == 'OR' ? '( ':'' ) +
              lexpr + ' ' +
+             ( logicOpr == 'OR' ? ') ':'') +
              logicOpr + ' ' +
+             ( logicOpr == 'OR' ? '( ':'' ) +
               rexpr +
               ( logicOpr == 'OR' ? ' )':'')
     end

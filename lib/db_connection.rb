@@ -7,17 +7,25 @@ module DBConn
 	end
 
 	# Find all the relations(tbls) from FROM Clause including their columns
-  	def DBConn.fromRels(fromPT)
-    	relNames = JsonPath.on(fromPT.to_json, '$..relname')
-    	relList = []
-    	relNames.uniq.each do |r|
+  	def DBConn.getRelFieldList(fromPT)
+    	relNames = JsonPath.on(fromPT.to_json, '$..RANGEVAR')
+    	fieldsList = []
+    	relNames.each do |r|
       		rel = Hash.new()
-      		rel['relName'] = r 
-      		query = QueryBuilder.find_all_cols(r)
-      		rel['colList'] =  exec(query).to_a
-      		relList << rel
+      		relName = r['relname'] 
+          relAlias = r['alias']
+          numericDataTypes = ['smallint','integer','bigint','decimal','numeric','real','double precision','serial','bigserial']
+      		query = QueryBuilder.find_cols_by_data_type(relName, numericDataTypes)
+      		colList=  exec(query).to_a
+      		colList.each do |c|
+            fields = []
+            fields << ( relAlias.nil? ? relName : relAlias['ALIAS']['aliasname'] )
+            fields << c['column_name']
+            fieldsList << fields
+          end
     	end 
-    	relList.compact!
-    	pp relList
- 	end
+
+    	return fieldsList.compact
+    	#pp fieldsList
+ 	  end
 end
