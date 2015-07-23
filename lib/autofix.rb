@@ -14,7 +14,39 @@ module AutoFix
           when ( joinType.to_s =='1' and joinSide == 'R'  )
             # the fix would be change join from Left JOin to Inner Join
             fromPT = JsonPath.for(fromPT).gsub('$..JOINEXPR'){|v| update_joinType_by_loc(v,loc,'0')  }.to_hash
-            # pp fromPT
+          # left Join, L side null is missing  
+          when ( joinType.to_s =='1' and joinSide == 'L'  )
+            # the fix would be change join from Left JOin to FULL Join
+            fromPT = JsonPath.for(fromPT).gsub('$..JOINEXPR'){|v| update_joinType_by_loc(v,loc,'3')  }.to_hash
+          # left Join, L side null is missing  and R side null is unwanted
+          when ( joinType.to_s =='1' and joinSide == 'L,R'  )
+            # the fix would be change join from Left JOin to RIGHT Join
+            fromPT = JsonPath.for(fromPT).gsub('$..JOINEXPR'){|v| update_joinType_by_loc(v,loc,'2')  }.to_hash
+          # right Join, l side null is unwanted  
+          when ( joinType.to_s =='2' and joinSide == 'L'  )
+            # the fix would be change join from Left JOin to Inner Join
+            fromPT = JsonPath.for(fromPT).gsub('$..JOINEXPR'){|v| update_joinType_by_loc(v,loc,'0')  }.to_hash
+          # right Join, R side null is unwanted  
+          when ( joinType.to_s =='2' and joinSide == 'L'  )
+            # the fix would be change join from Left JOin to FULL Join
+            fromPT = JsonPath.for(fromPT).gsub('$..JOINEXPR'){|v| update_joinType_by_loc(v,loc,'3')  }.to_hash
+          # right Join, R side null is missing  and L side null is unwanted
+          when ( joinType.to_s =='2' and joinSide == 'L,R'  )
+            # the fix would be change join from Left JOin to LEFT Join
+            fromPT = JsonPath.for(fromPT).gsub('$..JOINEXPR'){|v| update_joinType_by_loc(v,loc,'1')  }.to_hash
+          # inner join, R side null is missing  
+          when (joinType.to_s == '0' and joinSide == 'R')  
+            # the fix would be change join from INNERT JOin to LEFT Join
+            fromPT = JsonPath.for(fromPT).gsub('$..JOINEXPR'){|v| update_joinType_by_loc(v,loc,'1')  }.to_hash
+          # inner join, L side null is missing  
+          when (joinType.to_s == '0' and joinSide == 'L')  
+            # the fix would be change join from INNERT JOin to RIGHT Join
+            fromPT = JsonPath.for(fromPT).gsub('$..JOINEXPR'){|v| update_joinType_by_loc(v,loc,'2')  }.to_hash
+          # inner join, L,R side null are missing  
+          when (joinType.to_s == '0' and joinSide == 'L,R')  
+            # the fix would be change join from INNERT JOin to FULL Join
+            fromPT = JsonPath.for(fromPT).gsub('$..JOINEXPR'){|v| update_joinType_by_loc(v,loc,'3')  }.to_hash
+
           end
 
 

@@ -6,21 +6,33 @@ require_relative 'string_util'
 require_relative 'hash_util'
 require_relative 'query_builder'
 require_relative 'db_connection'
+require_relative 'query_builder'
 class LozalizeError
 
-  def initialize(fQuery, tQuery, parseTree)
+  #def initialize(fQuery, tQuery, parseTree)
+  def initialize(fQuery, fTable, tTable)
     @fQuery=fQuery
-    @tQuery=tQuery
-    @ps = parseTree
+    @fTable = fTable
+    #@tQuery=tQuery
+    @tTable = tTable    
+    @ps = PgQuery.parse(fQuery).parsetree[0]
+
+    @pkListQuery = QueryBuilder.find_pk_cols(tTable)
+    res = DBConn.exec(@pkListQuery)
+    @pkList = []
+    res.each do |r|
+      @pkList << r['attname']
+    end
+
     #pp @ps
     @pkJoin = ''
     pkSelectArry =[]
     pkJoinArry = []
-    @fQuery.pkList.split(',').each do |c|
+    @pkList.each do |c|
       pkJoinArry.push("t.#{c} = f.#{c}")
       pkSelectArry.push("f.#{c}" )
     end
-
+    #pp @pkList
     @pkSelect = pkSelectArry.join(',')
     @pkJoin = pkJoinArry.join(' AND ')
 
@@ -47,8 +59,8 @@ class LozalizeError
       colName = col['alias']
       #puts colName
       #p colName
-      unless @fQuery.pkList.to_s.include? colName
-        query = "select count(1) from #{@fQuery.table} f JOIN #{@tQuery.table} t ON #{@pkJoin} WHERE t.#{colName} != f.#{colName}"
+      unless @pkList.include? colName
+        query = "select count(1) from #{@fTable} f JOIN #{@tTable} t ON #{@pkJoin} WHERE t.#{colName} != f.#{colName}"
         #p query
         res = DBConn.exec(query)
         if (res.getvalue(0,0).to_i>0)
@@ -70,7 +82,7 @@ class LozalizeError
       #for missing data set, we need to replace all join to OUTER JOIN
       fromPT = JsonPath.for(@fromPT.to_json).gsub('$..jointype') {|v| "2" }.to_hash
       fromCondStr = ReverseParseTree.fromClauseConstr(fromPT)
-      p fromCondStr
+      #p fromCondStr
     end
     joinErrList = []
     joinJson = @ps['SELECT']['fromClause'][0].to_json
@@ -123,7 +135,7 @@ class LozalizeError
 
   def joinNullTest(pkNull,pkQuery, fromCondStr)
     pkNodes = []
-    @fQuery.pkList.split(',').each do |c|
+    @pkList.each do |c|
       pkNodes <<  ReverseParseTree.find_col_by_name(@ps['SELECT']['targetList'], c)
     end
     pkNodes.compact!
@@ -154,7 +166,7 @@ class LozalizeError
     # p rst 
     if rst == "IS SUBSET"
       joinTypeDesc = ReverseParseTree.joinTypeConvert(jointype.to_s)
-      p "Error in Join type #{joinTypeDesc} of #{joinSide}"
+      #p "Error in Join type #{joinTypeDesc} of #{joinSide}"
       h = Hash.new()
       h['location'] = location
       h['joinSide'] = joinSide
@@ -173,35 +185,39 @@ class LozalizeError
     # pkNull = @pkSelect.gsub(',',' IS NULL AND ')
 
     # # Unwanted rows
-    # query = "SELECT #{@pkSelect} FROM #{@fQuery.table} f LEFT JOIN #{@tQuery.table} t ON #{@pkJoin} where #{pkNull.gsub('f.','t.')} IS NULL"
+    #query = "SELECT #{@pkSelect} FROM #{@fQuery.table} f LEFT JOIN #{@tQuery.table} t ON #{@pkJoin} where #{pkNull.gsub('f.','t.')} IS NULL"
     #p query
-    res = find_unwanted_tuples()
+    query,res = find_unwanted_tuples()
     #res = DBConn.exec(query)
     unWantedPK = pkArryGen(res)
     # Join type test
     # jointypeErr(query,'Unwanted')
     if unWantedPK.count()>0
+      p 'Unwanted Pk'
+      #p query
       whereErrList = whereCondTest(unWantedPK,'U')
       joinErrList = jointypeErr(query,'U')
     end 
 
 
     # Missing rows
-    # query = "SELECT #{@pkSelect.gsub('f.','t.')} FROM #{@tQuery.table} t LEFT JOIN #{@fQuery.table} f ON #{@pkJoin} where #{pkNull} IS NULL"
+    #query = "SELECT #{@pkSelect.gsub('f.','t.')} FROM #{@tQuery.table} t LEFT JOIN #{@fQuery.table} f ON #{@pkJoin} where #{pkNull} IS NULL"
     # #p query
     # res = DBConn.exec(query)
-    res = find_missing_tuples()
+    query,res = find_missing_tuples()
 
     missinPK = pkArryGen(res)
     # Join type test
     # Join condition test
     # where clause test
     if missinPK.count()>0
+      p 'Missing PK'
+      #p query
       whereErrList = whereCondTest(missinPK,'M')
       joinErrList = jointypeErr(query,'M')
     end 
     #p joinErrList.to_a 
-    p whereErrList.to_a
+    #p whereErrList.to_a
 
     j = Hash.new
     j['JoinErr'] = joinErrList
@@ -213,10 +229,10 @@ class LozalizeError
     pkArry = []
     res.each do |r|
       pk = []
-      @fQuery.pkList.split(',').each do |c|
+      @pkList.each do |c|
         h =  Hash.new
         #col = ReverseParseTree.find_col_by_name(@ps['SELECT']['targetList'], c)['fullname']
-        h['col'] = ReverseParseTree.find_col_by_name(@ps['SELECT']['targetList'], c)['fullname']
+        h['col'] = ReverseParseTree.find_col_by_name(@ps['SELECT']['targetList'], c)['col']
         h['val'] = r[c]
         pk.push(h)
       end
@@ -257,21 +273,24 @@ class LozalizeError
     #p pkcond
   end
 
-  def find_unwanted_tuples()
+  def find_unwanted_tuples(count_only = false)
     pkNull = @pkSelect.gsub(',',' IS NULL AND ')
     # Unwanted rows
-    query = "SELECT #{@pkSelect} FROM #{@fQuery.table} f LEFT JOIN #{@tQuery.table} t ON #{@pkJoin} where #{pkNull.gsub('f.','t.')} IS NULL"
-    #p query
+    query = 'SELECT '+
+            ( count_only ?  'count()' : @pkSelect )+
+            " FROM #{@fTable} f LEFT JOIN #{@tTable} t ON #{@pkJoin} where #{pkNull.gsub('f.','t.')} IS NULL"
     res = DBConn.exec(query)
-    res
+    return query,res
   end
-  def find_missing_tuples()
+  def find_missing_tuples(count_only = false)
     pkNull = @pkSelect.gsub(',',' IS NULL AND ')
     # Unwanted rows
-    query = "SELECT #{@pkSelect.gsub('f.','t.')} FROM #{@tQuery.table} t LEFT JOIN #{@fQuery.table} f ON #{@pkJoin} where #{pkNull} IS NULL"
-    #p query
+    query = 'SELECT '+
+             ( count_only ?  'count()': @pkSelect.gsub('f.','t.'))+
+             " FROM #{@tTable} t LEFT JOIN #{@fTable} f ON #{@pkJoin} where #{pkNull} IS NULL"
     res = DBConn.exec(query)
-    res
+    return query, res
   end
+
 
 end

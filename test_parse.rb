@@ -9,7 +9,10 @@ require_relative 'lib/query_t'
 require_relative 'lib/localizeError'
 require_relative 'lib/reverse_parsetree'
 require_relative 'lib/genetic_alg'
+require_relative 'lib/hill_climbing'
 require_relative 'lib/autofix'
+require_relative 'lib/query_builder'
+require_relative 'lib/db_connection'
 
 opts = Trollop::options do
   banner "Usage: " + $0 + " --script [script] "
@@ -22,39 +25,66 @@ end
 fqueryJson = JSON.parse(File.read("sql/#{opts[:script]}"))
 tqueryJson = JSON.parse(File.read('sql/true.json'))
 
-fQuery = QueryT.new(fqueryJson, 'f_result')
-tQuery = QueryT.new(tqueryJson, 't_result')
+fQuery = fqueryJson['query']
+f_pkList = fqueryJson['pkList']
+fTable = 'f_result'
+query = QueryBuilder.create_tbl(fTable, f_pkList, fQuery)
+DBConn.exec(query)
 
-puts tQuery.query
+tQuery = tqueryJson['query']
+t_pkList = tqueryJson['pkList']
+tTable = 't_result'
+query = QueryBuilder.create_tbl(tTable, t_pkList, tQuery)
+DBConn.exec(query)
+
+#puts tQuery.query
 
 # generate parse tree
-ps = PgQuery.parse(fQuery.query).parsetree[0]
+
 
 # Auto fix using GA
-ga = GeneticAlg.new(ps)
-prog = ga.generate_random_program()
-psNew = ps
-psNew['SELECT']['whereClause'] = prog
-pp prog
-p ReverseParseTree.reverse(psNew)
+# ga = GeneticAlg.new(ps)
+# prog = ga.generate_random_program()
+
+# psNew = ps
+# psNew['SELECT']['whereClause'] = prog
+# pp prog
+
+# p ReverseParseTree.reverse(psNew)
+#ga.generate_neighbor_program(prog)
+
+
+
 #pp ps
 #ReverseParseTree.reverse(ps)
 
 # find projection error
-# localizeErr = LozalizeError.new(fQuery,tQuery, ps)
-# projErrList = localizeErr.projErr()
-# pp projErrList
-#  selectionErrList = localizeErr.selecionErr()
-#  pp selectionErrList
+#p fQuery.table
+localizeErr = LozalizeError.new(fQuery, fTable, tTable)
+projErrList = localizeErr.projErr()
+pp 'Projetion Error List:'
+pp projErrList
+selectionErrList = localizeErr.selecionErr()
+pp 'Selection Error List:'
+pp selectionErrList
 
-# psNew = AutoFix.JoinTypeFix(selectionErrList['JoinErr'],ps)
-# fQueryNew = ReverseParseTree.reverse(psNew)
-# f_pkList = fqueryJson['pkList']
-# fQueryNewJson = {:query => fQueryNew , :pkList => f_pkList}.to_json
-# localizeErr_aftJoinFix = LozalizeError.new(fQuery,tQuery, psNew)
-# selectionErrList_aftJoinFix = localizeErr_aftJoinFix.selecionErr()
-# pp selectionErrList_aftJoinFix
+ps = PgQuery.parse(fQuery).parsetree[0]
+#Fix join Error
+psNew = AutoFix.JoinTypeFix(selectionErrList['JoinErr'],ps)
+# Create test tbl after fixing join errors
+fQueryNew = ReverseParseTree.reverse(psNew)
+fTable = 'f_result_new'
+p fQueryNew
+query = QueryBuilder.create_tbl(fTable, f_pkList, fQueryNew)
+DBConn.exec(query)
 
+localizeErr_aftJoinFix = LozalizeError.new(fQueryNew, fTable, tTable)
+selectionErrList_aftJoinFix = localizeErr_aftJoinFix.selecionErr()
+pp selectionErrList_aftJoinFix
+
+# # Auto fix using HB (only need in fixing where condition error)
+# hb = HillClimbingAlg.new(ps)
+# hb.generate_neighbor_program
 
 
 # Auto fix using GA

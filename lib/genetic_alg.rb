@@ -1,4 +1,5 @@
 
+require 'jsonpath'
 require_relative 'reverse_parsetree'
 require_relative 'db_connection'
 require_relative 'random_gaussian'
@@ -44,7 +45,65 @@ class GeneticAlg
 	  expr["AEXPR #{aexpr}"] = r
 	  return expr
 	end
+	def generate_neighbor_program(parseTree)
+		# neighborPS = parseTree
+		mutateType = rand(3)
+		neighborPS = mutateColumn(parseTree)
+		# if mutateType == 0
+		# 	neighborPS = mutateConstant(parseTree)
+		# elsif mutateType == 1
+		# 	neighborPS = mutateColumn(parseTree)
+		# elsif mutateType == 2
+		# 	neighborPS = mutateOperator(parseTree)
+		# end
+		pp neighborPS			
 
+	end
+
+	def mutateConstant(parseTree)
+		jsonParseTree = parseTree
+		muParseTree =parseTree
+		constList = JsonPath.on(jsonParseTree, '$..A_CONST')
+		unless constList.count()==0
+			constant = constList[rand(constList.size)]
+			oldVal = constant['val'].to_i
+			p constant
+			p oldVal
+			mutant = constant
+			rand = rand_in_bounds(-10,10)
+			while rand == constant['val'].to_i
+				rand = rand_in_bounds(-10,10)
+			end
+			newVal = rand
+			p "newval: #{newVal}"
+			mutant['val'] = newVal
+			muParseTree = JsonPath.for(jsonParseTree).gsub("$..A_CONST") {|v| ( v['val'] == oldVal ? mutant : v) }
+		end
+		muParseTree 
+	end
+
+	def mutateColumn(parseTree)
+		jsonParseTree = parseTree
+		muParseTree =parseTree
+		colList = JsonPath.on(jsonParseTree, '$..COLUMNREF')
+		unless colList.count()==0
+			col = colList[rand(colList.size)]
+			oldVal = col['fields']
+			p col
+			mutant = col
+			rand = @fieldsList[rand(@fieldsList.size)]
+			while rand == col
+				rand = @fieldsList[rand(@fieldsList.size)]
+			end
+			newVal = rand
+			p "newval: #{newVal}"
+			mutant['fields'] = newVal
+			muParseTree = JsonPath.for(jsonParseTree).gsub("$..COLUMNREF") {|v| ( v['fields'] == oldVal ? mutant : v) }
+		end
+		muParseTree 
+	end
+	def mutateOperator(parseTree)
+	end	
 	# rand generate should be based on some statistic of the data set?
 	# Could use gaussian rand generation :
 	# g = RandomGaussian.new(0,1)

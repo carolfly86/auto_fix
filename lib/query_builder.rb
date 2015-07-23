@@ -34,5 +34,9 @@ module QueryBuilder
       end  
       query      
     end
-
+    def QueryBuilder.create_tbl(tblName, pkList, selectQuery)
+      insert = selectQuery.insert(selectQuery.downcase.index('from'), " INTO #{tblName} ")
+      pkCreate = "ALTER TABLE #{tblName} ADD PRIMARY KEY (#{pkList})"
+      query =  "DROP TABLE IF EXISTS #{tblName}; #{insert}; #{pkCreate};"
+    end
 end 	
