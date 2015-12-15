@@ -7,7 +7,8 @@ require_relative 'query_builder'
 module ReverseParseTree
 
   def ReverseParseTree.reverse(parseTree)
-    distinct = parseTree['SELECT']['distinctClause']||''
+    #distinct = parseTree['SELECT']['distinctClause']||''
+    distinct = parseTree['SELECT']['distinctClause'].kind_of?(Array) ? 'DISTINCT ' : ''
     #p parseTree['SELECT']['distinctClause']
     # p "Distinct: #{distinct}"
     targetList = parseTree['SELECT']['targetList'].map do  |t|
@@ -44,10 +45,15 @@ module ReverseParseTree
   end
   def ReverseParseTree.colNameConstr(t)
       rst = Hash.new()
+
+      p t['RESTARGET']
       rst['col'] = t['RESTARGET']['val']['COLUMNREF'].nil? ? whereClauseConst(t['RESTARGET']['val']) : t['RESTARGET']['val']['COLUMNREF']['fields'].join('.')
       rst['alias'] = t['RESTARGET']['name'].nil? ? (( t['RESTARGET']['val']['COLUMNREF']['fields'].count()==1 ) ? t['RESTARGET']['val']['COLUMNREF']['fields'][0] : t['RESTARGET']['val']['COLUMNREF']['fields'][1]) : "#{t['RESTARGET']['name']}"
       # rst['fullname'] = rst['alias'].length==0 ? rst['col'] : "#{rst['col']} AS #{rst['alias']}"
+      p rst['alias']
+      p rst['col'] 
       rst['fullname'] = "#{rst['col']} AS #{rst['alias']}"
+      p rst['fullname'] 
       rst
   end
   # construct expression
@@ -75,16 +81,18 @@ module ReverseParseTree
   def self.joinClauseConstr(join)
       #pp join
       #p join['JOINEXPR']['jointype']
-      jointype = joinTypeConvert( join['JOINEXPR']['jointype'].to_s )
+      jointype = joinTypeConvert( join['JOINEXPR']['jointype'].to_s, join['JOINEXPR']['quals'] )
       #p jointype
       larg = recursiveJoinArg(join['JOINEXPR']['larg'])
       rarg = recursiveJoinArg(join['JOINEXPR']['rarg'])
-      quals = whereClauseConst(join['JOINEXPR']['quals'])
-      joinClause = "#{larg} #{jointype} #{rarg} ON #{quals}"
+      quals = join['JOINEXPR']['quals'].nil? ?  "" : "ON "+ whereClauseConst(join['JOINEXPR']['quals'])
+      joinClause = "#{larg} #{jointype} #{rarg} #{quals}"
   end
 
-  def ReverseParseTree.joinTypeConvert(joinType)
+  def ReverseParseTree.joinTypeConvert(joinType, quals)
     case joinType
+        when '0'
+          quals.nil? ? 'CROSS JOIN' : 'JOIN'
         when '1'
           'LEFT JOIN'
         when '2'
@@ -102,6 +110,20 @@ module ReverseParseTree
     if where.nil?
       return ''
     end  
+    if where.kind_of?(Array)
+      exprArray =[]
+      where.each do |w|
+        exprArray <<whereClauseConstr_sub(w)
+      end
+      expr = "'"+exprArray.join(',')+"'"
+      p expr
+    else
+      expr = whereClauseConstr_sub(where)
+    end
+    
+  end
+
+  def ReverseParseTree.whereClauseConstr_sub(where)
     logicOpr = where.keys[0].to_s
     lexpr = where[logicOpr]['lexpr']
     rexpr = where[logicOpr]['rexpr']
@@ -111,6 +133,8 @@ module ReverseParseTree
       lexpr = lexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(lexpr) : exprConstr(lexpr)
       rexpr = rexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(rexpr) : exprConstr(rexpr)
       expr = lexpr.to_s + ' '+ op +' '+ rexpr.to_s
+    elsif logicOpr == 'A_CONST'
+      exprConstr(where)
     else
       lexpr = whereClauseConst(lexpr)
       rexpr = whereClauseConst(rexpr)
@@ -124,9 +148,7 @@ module ReverseParseTree
               rexpr +
               ( logicOpr == 'OR' ? ' )':'')
     end
-    expr
   end
-
   # def self.is_integer?(str)
   #   str.to_s.to_i.to_s == str.to_s
   # end

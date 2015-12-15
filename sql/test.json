@@ -1,4 +1,5 @@
 {
-  "query": "select q.id, choiceid, a.respondentid, a.surveyid,a.context, label, a.type, (2*q.minresponses + q.maxresponses ) as response from questions q join answers a on q.id = a.questionid and q.surveyid = a.surveyid LEFT JOIN answersets a2 on a.surveyid = a2.surveyid and a.respondentid = a2.respondentid and a.context = a2.context and a.etl_time=a2.etl_time ;",
-  "pkList": "id,choiceid,respondentid,surveyid,context"
+  "query": "select f.film_id, title, release_year from film f JOIN film_category fc on f.film_id = fc.film_id where f.replacement_cost < 100 and fc.category_id = 2;",
+  "pkList": "film_id"
 }
+

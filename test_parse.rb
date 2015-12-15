@@ -5,24 +5,19 @@ require 'pp'
 require 'pg'
 require 'yaml'
 require 'json'
-require_relative 'lib/query_t'
-require_relative 'lib/localizeError'
-require_relative 'lib/reverse_parsetree'
-require_relative 'lib/genetic_alg'
-require_relative 'lib/hill_climbing'
-require_relative 'lib/autofix'
-require_relative 'lib/query_builder'
-require_relative 'lib/db_connection'
+require 'pry'
+Dir["lib/*"].each {|file| require_relative file }
 
 opts = Trollop::options do
   banner "Usage: " + $0 + " --script [script] "
   opt :script, "location of sql script", :type => :string
+  opt :expectation, "location of expectation file", :type => :string
 end
 #cfg = YAML.load_file( File.join(File.dirname(__FILE__), "config/default.yml") )
 #conn = PG::Connection.open(dbname: cfg['default']['database'], user: cfg['default']['user'], password: cfg['default']['password'])
 
-
-fqueryJson = JSON.parse(File.read("sql/#{opts[:script]}"))
+p opts
+fqueryJson = JSON.parse(File.read("sql/#{opts[:script]}.json"))
 tqueryJson = JSON.parse(File.read('sql/true.json'))
 
 fQuery = fqueryJson['query']
@@ -37,6 +32,42 @@ tTable = 't_result'
 query = QueryBuilder.create_tbl(tTable, t_pkList, tQuery)
 DBConn.exec(query)
 
+puts "similarity"
+localizeErr = LozalizeError.new(fQuery, fTable, tTable)
+localizeErr.similarityBitMap()
+
+expJson = JSON.parse(File.read("sql/#{opts[:expectation]}.json"))
+pp expJson
+exp = Expectation.new()
+exp.support = expJson['support']
+exp.behavior = expJson['behavior']
+
+#p exp.behaviorDomain()
+puts "separation:"
+p exp.separationScore()
+puts "selectivity"
+p exp.selectivityScore()
+puts "support:"
+p exp.supportScore('t_result')
+puts 'satisfaction'
+res = exp.satisfaction('t_result','f_result')
+puts "true: #{res[0]}"
+puts "false: #{res[1]}"
+
+puts'--------------------------'
+
+exp_am = Expectation_AM.new()
+exp_am.support = expJson['support']
+exp_am.behavior = expJson['behavior']
+
+#p exp.behaviorDomain()
+
+puts "support:"
+p exp_am.supportScore('t_result')
+puts 'satisfaction'
+puts exp_am.satisfaction('t_result','f_result')
+
+return
 #puts tQuery.query
 
 # generate parse tree
@@ -60,14 +91,15 @@ DBConn.exec(query)
 
 # find projection error
 #p fQuery.table
-localizeErr = LozalizeError.new(fQuery, fTable, tTable)
+
+
 projErrList = localizeErr.projErr()
 pp 'Projetion Error List:'
 pp projErrList
 selectionErrList = localizeErr.selecionErr()
 pp 'Selection Error List:'
 pp selectionErrList
-
+return
 ps = PgQuery.parse(fQuery).parsetree[0]
 #Fix join Error
 psNew = AutoFix.JoinTypeFix(selectionErrList['JoinErr'],ps)

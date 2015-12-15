@@ -7,5 +7,30 @@ class String
     # p self
     self.is_integer? ? self : "'#{self}'" 
   end
+
+  def is_number?
+  	 true if Float(self) rescue false
+  end
+  def is_uuid?
+     !(self =~/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/).nil?
+  end
+  def is_bool?
+     %w[1 0 true false].include?(self)
+  end
+
+  def typCategory
+   
+    if self.is_number?
+      typcategory = 'N'
+    elsif self.is_bool?
+      typcategory = 'B'
+    elsif self.is_uuid?
+      typcategory = 'U'
+    else
+      typcategory = 'S'
+    end
+    typcategory
+  end
+
 end
 

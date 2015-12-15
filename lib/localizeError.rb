@@ -42,8 +42,49 @@ class LozalizeError
     @fromCondStr = ReverseParseTree.fromClauseConstr(@fromPT)
     @whereStr = ReverseParseTree.whereClauseConst(@wherePT)
 
+  end
 
+  def similarityBitMap()
+    colList = @pkSelect.gsub(/f\./,'').split(',').map{|c| "t.#{c} as #{c}_pk, CASE WHEN t.#{c} is null or f.#{c} is null then 0 else 1 END as #{c}"}.join(',')
+    colCnt = ''
+    sumCnt = ''
+    matchingColQuery = QueryBuilder.find_matching_cols(@tTable, @fTable)
+   # p matchingColQuery
+    matchingCol = DBConn.exec(matchingColQuery)
+    matchingCol.each do |r|
+      unless @pkList.include? r['col1']
+        if (r['is_matching'] == '1')
+          colList += " , CASE WHEN t.#{r['col1']} = f.#{r['col1']} then 1 else 0 end as #{r['col1']}" 
+          colCnt += " sum(#{r['col1']}) as #{r['col1']}_cnt,"
+          sumCnt += "#{r['col1']}_cnt+"
+        else  
+          colList += r['col1'].nil? ? " , 0 as #{r['col2']}" : " , 0 as #{r['col1']}"
+        end
+      end
+    end
+    query = "drop table if exists similarityBitMap; select #{colList} into similarityBitMap from #{@fTable} f FULL OUTER JOIN #{@tTable} t ON #{@pkJoin}"    
+    # p query
+    DBConn.exec(query)
+    query = "select count(1) as total_cnt from similarityBitMap"
+    res = DBConn.exec(query)
+    total_cnt = res[0]['total_cnt'].to_f
+    # puts "total_cnt: #{total_cnt}"
+    colNum = (matchingCol.count - @pkList.count).to_f
+    # puts "colNum: #{colNum}"
 
+    total_field = total_cnt*colNum
+    # puts "total_field: #{total_field}"
+    colCnt = colCnt[0...-1]
+    sumCnt = sumCnt[0...-1]
+    query = "with t as(select #{colCnt} from similarityBitMap) select #{sumCnt} as sum from t;"
+    # puts query
+    res = DBConn.exec(query)
+    sum = res[0]['sum'].to_f
+
+    # puts "sum: #{sum}"
+
+    puts "similarity: "
+    puts (sum/total_field).to_f
   end
   # projection error localization
   def projErr()

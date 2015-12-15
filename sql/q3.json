@@ -1,0 +1,6 @@
+{
+  "query": "Select film_id , rental_rate, length,rental_duration, release_year from film where length >90 and rental_rate = 4;",
+  "pkList": "film_id"
+}
+
+

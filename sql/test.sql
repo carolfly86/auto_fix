@@ -1,1 +1,1 @@
-select q.label, a.type from questions q join answers a on q.id = a.questionid where q.surveyid=2094;
+select q.label, a.type +1 as type from questions q CROSS join answers a

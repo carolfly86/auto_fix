@@ -1,0 +1,6 @@
+{
+  "query": "Select film_id , rental_rate , release_year from film where film_id in (1,2);",
+  "pkList": "film_id"
+}
+
+

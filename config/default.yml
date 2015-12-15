@@ -1,4 +1,4 @@
 default:
-  database: 'polling_etl'
+  database: 'pagila'
   user: 'yguo'
   password: 'gy861023'

@@ -1,4 +1,6 @@
 {
-  "query": "select q.id, choiceid, a.respondentid, a.surveyid,a.context, label, a.type,  (q.minresponses - q.maxresponses ) as response from questions q join answers a on q.id = a.questionid and q.surveyid = a.surveyid LEFT JOIN answersets a2 on a.surveyid = a2.surveyid and a.respondentid = a2.respondentid and a.context = a2.context and a.etl_time=a2.etl_time where a.surveyid = 8399 AND type = 'PICK';",
-  "pkList": "id,choiceid,respondentid,surveyid,context"
+  "query": "Select film_id, rental_rate, length,rental_duration, release_year from film where length >90 and rental_rate<4;",
+  "pkList": "film_id"
 }
+
+

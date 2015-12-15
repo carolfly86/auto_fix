@@ -1,8 +1,8 @@
 require 'jsonpath'
-require_relative 'reverse_parsetree'
-require_relative 'db_connection'
-require_relative 'random_gaussian'
-require_relative 'localizeError'
+# require_relative 'reverse_parsetree'
+# require_relative 'db_connection'
+# require_relative 'random_gaussian'
+# require_relative 'localizeError'
 class HillClimbingAlg
 	def initialize(parseTree,tTable)
 		@max_gens = 100
