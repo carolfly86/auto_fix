@@ -1,5 +1,5 @@
 {
-  "query": "Select film_id , rental_rate , release_year from film where film_id in (1,2);",
+  "query": "Select film_id , rental_rate, length,rental_duration, release_year from film where film_id in(24,218,291,184);",
   "pkList": "film_id"
 }
 

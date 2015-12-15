@@ -85,6 +85,7 @@ class LozalizeError
 
     puts "similarity: "
     puts (sum/total_field).to_f
+    (sum/total_field).to_f
   end
   # projection error localization
   def projErr()

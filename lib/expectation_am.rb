@@ -58,6 +58,7 @@ class Expectation_AM
     else
       @bhCol = whereClause[aexpr]["lexpr"]["COLUMNREF"]["fields"][0]
       res = DBConn.getColByDataCategory('t_result','',@bhCol)
+      # binding.pry
       dataType = res[0]["data_type"]
       typeCategory = res[0]["typcategory"]
       if typeCategory == 'N'

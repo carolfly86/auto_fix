@@ -8,19 +8,31 @@ require 'json'
 require 'pry'
 
 Dir["lib/*"].each {|file| require_relative file }
+#create t_result table
+tqueryJson = JSON.parse(File.read('sql/true.json'))
+
+tQuery = tqueryJson['query']
+t_pkList = tqueryJson['pkList']
+tTable = 't_result'
+query = QueryBuilder.create_tbl(tTable, t_pkList, tQuery)
+DBConn.exec(query)
+
 
 query = "DROP TABLE if exists cs; "+
 " CREATE TABLE if not exists cs (cs_id varchar(30), exp_id varchar(30), separation float null, selectivity float null, significance float null)"
 DBConn.exec(query)
 
 query = "DROP TABLE if exists q_cs; "+
-" CREATE TABLE if not exists q_cs (q_id varchar(30),cs_id varchar(30),exp_id varchar(30), scope float null, satisfaction float null)"
+" CREATE TABLE if not exists q_cs (q_id varchar(30),cs_id varchar(30),exp_id varchar(30), scope float null, satisfaction float null, weighted_satisfaction float null, weighted_significance float null)"
+DBConn.exec(query)
+
+query = "DROP TABLE if exists q_similarity; "+
+" CREATE TABLE if not exists q_similarity (q_id varchar(30), similarity float null)"
 DBConn.exec(query)
 
 
-
 #calculate constraint set separation and selectivity
-Dir["expectation/cs*.json"].each do |cs| 
+Dir["expectation1/cs*.json"].each do |cs| 
 	puts cs
 	cs_id = cs.split('/')[1].gsub('.json','')
 	csJson = JSON.parse(File.read("#{cs}"))
@@ -57,7 +69,8 @@ Dir["sql/q*.json"].each  do |sql|
 	puts "**********************************"
 	puts"#{sql}"
 	fqueryJson = JSON.parse(File.read("#{sql}"))
-	tqueryJson = JSON.parse(File.read('sql/true.json'))
+	# tqueryJson = JSON.parse(File.read('sql/true.json'))
+	q_id = sql.split('/')[1].gsub('.json','')
 
 	fQuery = fqueryJson['query']
 	f_pkList = fqueryJson['pkList']
@@ -65,15 +78,16 @@ Dir["sql/q*.json"].each  do |sql|
 	query = QueryBuilder.create_tbl(fTable, f_pkList, fQuery)
 	DBConn.exec(query)
 
-	tQuery = tqueryJson['query']
-	t_pkList = tqueryJson['pkList']
-	tTable = 't_result'
-	query = QueryBuilder.create_tbl(tTable, t_pkList, tQuery)
-	DBConn.exec(query)
+	# tQuery = tqueryJson['query']
+	# t_pkList = tqueryJson['pkList']
+	# tTable = 't_result'
+	# query = QueryBuilder.create_tbl(tTable, t_pkList, tQuery)
+	# DBConn.exec(query)
 
-	puts "similarity"
 	localizeErr = LozalizeError.new(fQuery, fTable, tTable)
-	localizeErr.similarityBitMap()
+	similarity = localizeErr.similarityBitMap()
+	query = "insert into q_similarity select '#{q_id}', #{similarity}"
+	DBConn.exec(query)
 
     # calculate total satisfication and coverage
 	pkArray = f_pkList.split(',')
@@ -88,13 +102,14 @@ Dir["sql/q*.json"].each  do |sql|
 	sfSumQuery = colArray.map{|c| " sum(case when #{c}>1 then 1 else 0 end) "}.join('+')
 	cvSumQuery = colArray.map{|c| " sum(case when #{c}>0 then 1 else 0 end) "}.join('+')
     colCnt = cols.count()-pkArray.count()
-	Dir["expectation/cs*.json"].each do |cs| 
-		q_id = sql.split('/')[1].gsub('.json','')
+	Dir["expectation1/cs*.json"].each do |cs| 
 		cs_id = cs.split('/')[1].gsub('.json','')
 		csJson = JSON.parse(File.read("#{cs}"))
 
+
 		#create satisfactionMap table
 		satisfactionMapTbl = "#{q_id}_#{cs_id}_satisfaction"
+		#drop satisfaction table
 		query = QueryBuilder.satisfactionMap(satisfactionMapTbl,fTable,f_pkList)
 		p query
 		DBConn.exec(query) 
@@ -122,10 +137,20 @@ Dir["sql/q*.json"].each  do |sql|
 			satisfaction = exp_am.satisfaction('f_result')
 			puts "satisfaction: #{satisfaction}"
 
+			weightedSatisfaction = satisfaction.to_f * support.to_f
+			puts "weightedSatisfaction: #{weightedSatisfaction}"
+
+			# get significance 
+			query = "select significance from cs where cs_id = '#{cs_id}' and exp_id = '#{exp_id}'"
+			res = DBConn.exec(query)
+			q_significance = res[0]['significance']
+			weightedSignificance = q_significance.to_f * support.to_f
+
+
 			exp_am.updSatCvgMapTbl('f_result',f_pkList,satisfactionMapTbl)
 
-			query = "INSERT INTO q_cs (q_id, cs_id, exp_id, scope, satisfaction)" +
-			       " SELECT '#{q_id}','#{cs_id}','#{exp_id}', #{support}, #{satisfaction}"
+			query = "INSERT INTO q_cs (q_id, cs_id, exp_id, scope, satisfaction,weighted_satisfaction, weighted_significance)" +
+			       " SELECT '#{q_id}','#{cs_id}','#{exp_id}', #{support}, #{satisfaction}, #{weightedSatisfaction},#{weightedSignificance}"
 			p query
 			DBConn.exec(query)       
 		end	
@@ -145,8 +170,10 @@ Dir["sql/q*.json"].each  do |sql|
 		else
 			totalSatisfiction =0
 		end
-		query = "INSERT INTO q_cs (q_id, cs_id, exp_id, scope, satisfaction)" +
-		" SELECT '#{q_id}','#{cs_id}','total', #{totalCoverage}, #{totalSatisfiction}"
+		query = "INSERT INTO q_cs (q_id, cs_id, exp_id, scope, satisfaction,weighted_satisfaction,weighted_significance)" +
+		" SELECT '#{q_id}','#{cs_id}','total', #{totalCoverage}, #{totalSatisfiction}, sum(weighted_satisfaction) , sum(weighted_significance)"+
+		" FROM ( select q_id, cs_id, weighted_satisfaction, weighted_significance from q_cs where q_id = '#{q_id}' and cs_id = '#{cs_id}' ) as A"+
+		" group by q_id, cs_id"
 		p query
 		DBConn.exec(query) 
 
