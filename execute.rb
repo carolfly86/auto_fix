@@ -171,8 +171,8 @@ Dir["sql/q*.json"].each  do |sql|
 			totalSatisfiction =0
 		end
 		query = "INSERT INTO q_cs (q_id, cs_id, exp_id, scope, satisfaction,weighted_satisfaction,weighted_significance)" +
-		" SELECT '#{q_id}','#{cs_id}','total', #{totalCoverage}, #{totalSatisfiction}, sum(weighted_satisfaction) , sum(weighted_significance)"+
-		" FROM ( select q_id, cs_id, weighted_satisfaction, weighted_significance from q_cs where q_id = '#{q_id}' and cs_id = '#{cs_id}' ) as A"+
+		" SELECT '#{q_id}','#{cs_id}','total', sum(scope), #{totalSatisfiction}, sum(weighted_satisfaction) , sum(weighted_significance)"+
+		" FROM ( select q_id, cs_id,scope, weighted_satisfaction, weighted_significance from q_cs where q_id = '#{q_id}' and cs_id = '#{cs_id}' ) as A"+
 		" group by q_id, cs_id"
 		p query
 		DBConn.exec(query) 
