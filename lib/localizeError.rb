@@ -1,6 +1,7 @@
 require 'pg'
 require 'pg_query'
 require 'jsonpath'
+require 'rubytree'
 require_relative 'reverse_parsetree'
 require_relative 'string_util'
 require_relative 'hash_util'
@@ -333,6 +334,7 @@ class LozalizeError
     res = DBConn.exec(query)
     return query, res
   end
+
 
 
 end

@@ -2,6 +2,7 @@ require 'json'
 require 'pp'
 require 'pg'
 require 'jsonpath'
+require 'rubytree'
 require_relative 'string_util'
 require_relative 'query_builder'
 module ReverseParseTree
@@ -158,7 +159,7 @@ module ReverseParseTree
     #pp wherePT
     logicOpr = wherePT.keys[0].to_s
     #p logicOpr
-    if logicOpr == 'AEXPR AND' 
+    if ( logicOpr == 'AEXPR AND' or logicOpr == 'AEXPR OR')
       result += whereCondSplit(wherePT[logicOpr]['lexpr'])
       result += whereCondSplit(wherePT[logicOpr]['rexpr'])
     # or operator are tested as a whole 
@@ -194,6 +195,36 @@ module ReverseParseTree
     end
     node
   end
-
+  def ReverseParseTree.predicate_tree_const(wherePT)
+    # if cnt ==0
+    #   nodeName= 'root'
+    #   curNode = Tree::TreeNode.new(nodeName, '')
+    # end
+    # curNode = Tree::TreeNode.new(nodeName, '')
+    logicOpr = wherePT.keys[0].to_s
+    #p logicOpr
+    if logicOpr == 'AEXPR AND' 
+      lexpr = predicate_tree_const(lexpr) 
+      rexpr = predicate_tree_const(rexpr)
+      curNode<<lexpr<<rexpr
+    # or operator are tested as a whole 
+    elsif logicOpr == 'AEXPR OR'
+      lexpr = predicate_tree_const(lexpr) 
+      rexpr = predicate_tree_const(rexpr) 
+      curNode<<lexpr
+      curNode<<rexpr
+    else 
+      # nodeName= "P#{cnt+1}"
+      # cnt= cnt+1
+      h =  Hash.new
+      h['query'] = whereClauseConst(wherePT)
+      # pp wherePT
+      h['location'] = wherePT[logicOpr]['location']
+      h['suspicious_score'] = 0
+      curNode=Tree::TreeNode.new(h['location'], h)
+    end
+    #pp result.to_a
+    curNode
+  end
 
 end

@@ -32,6 +32,11 @@ tTable = 't_result'
 query = QueryBuilder.create_tbl(tTable, t_pkList, tQuery)
 DBConn.exec(query)
 
+# predicate tree
+pt = PredicateTree.new(PgQuery.parse(fQuery).parsetree[0]['SELECT']['whereClause'])
+# pp pt.pdtree
+return
+#
 puts "similarity"
 localizeErr = LozalizeError.new(fQuery, fTable, tTable)
 localizeErr.similarityBitMap()

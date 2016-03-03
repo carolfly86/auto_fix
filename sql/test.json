@@ -1,5 +1,5 @@
 {
-  "query": "select f.film_id, title, release_year from film f JOIN film_category fc on f.film_id = fc.film_id where f.replacement_cost < 100 and fc.category_id = 2;",
-  "pkList": "film_id"
+  "query": "select * from customer where active=1 and (create_date > '2014-01-01' or last_update > '2015-01-01');",
+  "pkList": "customer_id"
 }
 

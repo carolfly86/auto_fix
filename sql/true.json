@@ -1,6 +1,6 @@
 {
-  "query": "Select film_id, rental_rate, length,rental_duration, release_year from film where length >90 and rental_rate<4;",
-  "pkList": "film_id"
+  "query": "select * from customer where active=1 and (create_date > '2014-01-01' or last_update > '2014-01-01');",
+  "pkList": "customer_id"
 }
 
 
