@@ -31,7 +31,7 @@ module QueryBuilder
       # query = "SELECT column_name,data_type
       #         FROM information_schema.columns
       #         WHERE table_name   = '#{tbl}'" 
-      puts "'#{col}'"
+      # puts "'#{col}'"
       query = "SELECT a.attname as column_name ,c.relname,
                 pg_catalog.format_type(a.atttypid, a.atttypmod) as data_type,
                  p.typcategory
@@ -47,19 +47,20 @@ module QueryBuilder
         else
           dataType = data_type
         end
-        dataTypeCond = " AND p.typcategory IN (#{dataType}) ;"
+        dataTypeCond = " AND p.typcategory IN ('#{dataType}') ;"
         query = query + dataTypeCond
       end  
       unless col.to_s ==''
         colCond = " and a.attname = '#{col}'"
         query = query +colCond
       end
-      query      
+      query
     end
     def QueryBuilder.create_tbl(tblName, pkList, selectQuery)
-      insert = selectQuery.insert(selectQuery.downcase.index('from'), " INTO #{tblName} ")
-      pkCreate = "ALTER TABLE #{tblName} ADD PRIMARY KEY (#{pkList})"
-      query =  "DROP TABLE IF EXISTS #{tblName}; #{insert}; #{pkCreate};"
+      insertQuery = selectQuery.dup
+      insert = insertQuery.insert(insertQuery.downcase.index('from'), " INTO #{tblName} ")
+      pkCreate = pkList.to_s.empty? ? '' : "ALTER TABLE #{tblName} ADD PRIMARY KEY (#{pkList});" 
+      query =  "DROP TABLE IF EXISTS #{tblName}; #{insert}; #{pkCreate}"
     end
    def QueryBuilder.satisfactionMap(tblName,fDataset,fPKList)
       query = "DROP TABLE if exists #{tblName}; "
@@ -90,5 +91,22 @@ module QueryBuilder
       binding.pry
       query = "select ( (select #{colQuery} from #{tblName})::float/(select count(1)*#{cols.count()} from #{tblName})::float)::float as score;"
     end
+
+  def QueryBuilder.pkCondConstr(pk,tbl_alias='')
+    pk.map{|pk| (tbl_alias.empty? ? '' : "#{tbl_alias}.")+ pk['col']+' = '+ pk['val'].to_s.str_int_rep }.join(' AND ')
+    #p pkcond
+  end
+  def QueryBuilder.pkValConstr(pk)
+    pk.map{|pk|  pk['val'].to_s.str_int_rep }.join(', ')
+    #p pkcond
+  end
+  def QueryBuilder.pkColConstr(pk)
+    pk.map{|pk|  pk['col'] }.join(', ')
+    #p pkcond
+  end
+  def QueryBuilder.pkJoinConstr(pk)
+    pk.map{|pk|  "t.#{pk['col']} = f.#{pk['col']}" }.join(' AND ')
+    #p pkcond
+  end
 
 end 	

@@ -6,7 +6,12 @@ module DBConn
 		@conn.exec(query)  
 	end
 
-	# Find all the relations(tbls) from FROM Clause including their columns
+  def DBConn.tblCreation(tblName, pkList, query)
+    q = QueryBuilder.create_tbl(tblName, pkList, query)
+    exec(q)
+  end
+
+	# Find all the relations(tbls) from FROM Clause including their numericDataTypes columns
   	def DBConn.getRelFieldList(fromPT)
     	relNames = JsonPath.on(fromPT.to_json, '$..RANGEVAR')
     	fieldsList = []
@@ -59,6 +64,77 @@ module DBConn
           end
       end 
 
+      return fieldsList.compact
+      #pp fieldsList
+    end
+
+
+
+      # Given a column, Find all the relations(tbls) in FROM Clause with matching data type category
+    def DBConn.findRelFieldListByCol(fromPT, column)
+      colRelName = ''
+      if column.length >1
+        colRelAlias = column[0]
+        colName = column[1]
+        fromPT.each do |rels|
+          relList = JsonPath.new('$..RANGEVAR').on(rels)
+          relList.each do |rel|
+            if JsonPath.new('$..aliasname').on(rel).any?{|r| r==colRelAlias}
+              colRelName = JsonPath.new('$..relname').on(rel).to_a[0]
+              break;
+            end
+          end
+
+        end
+        query = QueryBuilder.find_cols_by_data_typcategory(colRelName, '',colName) unless colRelName.to_s.empty?
+
+        rst = exec(query)
+        colDataTypeCateory = rst.to_a[0]['typcategory'] if rst.count()>0
+        # .to_a[0]['typcategory']
+        # pp colDataTypeCateory
+      else
+        colName = column[0] 
+        fromPT.each do |rels|
+          relList = JsonPath.new('$..RANGEVAR').on(rels)
+          relList.each do |rel|
+              colRelName = JsonPath.new('$..relname').on(rel).to_a[0]
+              query = QueryBuilder.find_cols_by_data_typcategory(colRelName, '',colName) unless colRelName.to_s.empty?
+              rst = exec(query).to_a
+              if rst.count()>0
+                colDataTypeCateory = rst[0]['typcategory']
+                break
+              end
+          end
+
+        end
+      end
+
+      relNames = JsonPath.on(fromPT.to_json, '$..RANGEVAR')
+      fieldsList = []
+      relNames.each do |r|
+          rel = Hash.new()
+          relName = r['relname'] 
+          relAlias = r['alias']
+          #numericDataTypes = ['smallint','integer','bigint','decimal','numeric','real','double precision','serial','bigserial']
+          query = QueryBuilder.find_cols_by_data_typcategory(relName, colDataTypeCateory,'')
+          colList=  exec(query).to_a
+          colList.each do |c|
+            field = Column.new
+            field.colname = c['column_name']
+            field.relname = relName 
+            field.relalias = relAlias.nil? ? relName : relAlias['ALIAS']['aliasname']
+            field.datatype = c['data_type']
+            field.typcategory = c['typcategory']
+            # field = {}
+
+            # field['rel_alias'] = relAlias.nil? ? relName : relAlias['ALIAS']['aliasname']
+            # field['rel_name'] = relName  
+            # field['column_name'] = c['column_name']
+            # field['data_type'] = c['data_type']
+            # field['typcategory'] = c['typcategory']
+            fieldsList << field
+          end
+      end 
       return fieldsList.compact
       #pp fieldsList
     end

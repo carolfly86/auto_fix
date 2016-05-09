@@ -60,4 +60,16 @@ module AutoFix
   def AutoFix.update_joinType_by_loc(json,loc, new_val)
     JsonPath.on(json, '$.rarg.RANGEVAR.location')[0] == loc ? JsonPath.for(json).gsub('$.jointype'){|v| new_val }.to_hash : json  
   end
+
+  def AutoFix.whereCondFix(wherePT)
+
+    query ="select node_name,query,columns,suspicious_score "+
+        "from node_query_mapping "+
+        "where suspicious_score >0"
+    predicateList =PredicateUtil.get_predicateList(query)
+
+    predicateList.each do |predicate|
+      location=predicate['location']
+    end
+  end
 end

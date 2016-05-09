@@ -1,5 +1,5 @@
 {
-  "query": "select * from customer where active=1 and (create_date > '2014-01-01' or last_update > '2015-01-01');",
+  "query": "select customer_id, c.address_id, postal_code from customer c join address a on c.address_id = a.address_id where a.postal_code like '1____' and (c.create_date > '2015-01-01' or c.last_update > '2014-01-01');",
   "pkList": "customer_id"
 }
 

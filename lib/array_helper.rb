@@ -6,5 +6,8 @@ class Array
     rand = Utils.rand_in_bounds(0, newArray.length)
     newArray[rand]
   end
-
+  # find the hash element in array with the provided key and value
+  def find_hash(k, v)
+  	self.find {|x| x[k] == v}
+  end
 end

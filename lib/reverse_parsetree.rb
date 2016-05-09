@@ -15,22 +15,43 @@ module ReverseParseTree
     targetList = parseTree['SELECT']['targetList'].map do  |t|
       colNameConstr(t)['fullname']
     end.join(', ')
-     p "targetList: #{targetList}"
+     # p "targetList: #{targetList}"
 
     fromPT = parseTree['SELECT']['fromClause']
     fromClause = fromClauseConstr(fromPT)
-     p "fromClause: #{fromClause}"
+     # p "fromClause: #{fromClause}"
     wherePT = parseTree['SELECT']['whereClause']
     whereClause = whereClauseConst(wherePT)
-     p "WhereClause: #{whereClause}"
+     # p "WhereClause: #{whereClause}"
 
     query = 'SELECT '+ distinct + targetList +
             ' FROM ' + fromClause+
              ( whereClause.length == 0? '' : ' WHERE '+ whereClause)
-            
 
   end
 
+  # replace select target list in query with replacement
+  def ReverseParseTree.reverseAndreplace(parseTree, targetListReplacement, whereClauseReplacement)
+ #distinct = parseTree['SELECT']['distinctClause']||''
+    distinct = parseTree['SELECT']['distinctClause'].kind_of?(Array) ? 'DISTINCT ' : ''
+    #p parseTree['SELECT']['distinctClause']
+    if targetListReplacement.to_s.empty?
+      targetList = parseTree['SELECT']['targetList'].map do  |t|
+        colNameConstr(t)['fullname']
+      end.join(', ')
+    else
+      targetList = targetListReplacement
+    end
+    fromPT = parseTree['SELECT']['fromClause']
+    fromClause = fromClauseConstr(fromPT)
+    wherePT = parseTree['SELECT']['whereClause']
+
+    whereClause = whereClauseReplacement.to_s.empty? ? whereClauseConst(wherePT) : whereClauseReplacement
+    query = 'SELECT '+ distinct + targetList +
+            ' FROM ' + fromClause+
+             ( whereClause.length == 0? '' : ' WHERE '+ whereClause)
+
+  end
   # construct relname from relname and rel alias
   def ReverseParseTree.relnameConstr(rel)
     #pp rel
@@ -47,16 +68,17 @@ module ReverseParseTree
   def ReverseParseTree.colNameConstr(t)
       rst = Hash.new()
 
-      p t['RESTARGET']
+      # p t['RESTARGET']
       rst['col'] = t['RESTARGET']['val']['COLUMNREF'].nil? ? whereClauseConst(t['RESTARGET']['val']) : t['RESTARGET']['val']['COLUMNREF']['fields'].join('.')
       rst['alias'] = t['RESTARGET']['name'].nil? ? (( t['RESTARGET']['val']['COLUMNREF']['fields'].count()==1 ) ? t['RESTARGET']['val']['COLUMNREF']['fields'][0] : t['RESTARGET']['val']['COLUMNREF']['fields'][1]) : "#{t['RESTARGET']['name']}"
       # rst['fullname'] = rst['alias'].length==0 ? rst['col'] : "#{rst['col']} AS #{rst['alias']}"
-      p rst['alias']
-      p rst['col'] 
+      # p rst['alias']
+      # p rst['col'] 
       rst['fullname'] = "#{rst['col']} AS #{rst['alias']}"
-      p rst['fullname'] 
+      # p rst['fullname'] 
       rst
   end
+
   # construct expression
   def self.exprConstr(expr)
     unless expr['A_CONST'].nil?
@@ -117,7 +139,7 @@ module ReverseParseTree
         exprArray <<whereClauseConstr_sub(w)
       end
       expr = "'"+exprArray.join(',')+"'"
-      p expr
+      # p expr
     else
       expr = whereClauseConstr_sub(where)
     end
@@ -143,9 +165,9 @@ module ReverseParseTree
 
       expr = ( logicOpr == 'OR' ? '( ':'' ) +
              lexpr + ' ' +
-             ( logicOpr == 'OR' ? ') ':'') +
+             # ( logicOpr == 'OR' ? ') ':'') +
              logicOpr + ' ' +
-             ( logicOpr == 'OR' ? '( ':'' ) +
+             # ( logicOpr == 'OR' ? '( ':'' ) +
               rexpr +
               ( logicOpr == 'OR' ? ' )':'')
     end
@@ -166,15 +188,33 @@ module ReverseParseTree
     else 
       h =  Hash.new
       h['query'] = whereClauseConst(wherePT)
-      # pp wherePT
+      pp wherePT
       h['location'] = wherePT[logicOpr]['location']
       h['suspicious_score'] = 0
+      h['columns'] = columnsInPredicate(wherePT)
       result << h
     end
     #pp result.to_a
     result
   end
-
+  def ReverseParseTree.columnsInPredicate(expr)
+    columns = []
+    #pp wherePT
+    logicOpr = expr.keys[0].to_s
+    # p logicOpr
+    if ( logicOpr == 'AEXPR')
+      columns += columnsInPredicate(expr[logicOpr]['lexpr'])
+      columns += columnsInPredicate(expr[logicOpr]['rexpr'])
+    # or operator are tested as a whole 
+    else 
+      unless expr['COLUMNREF'].nil?
+        col = expr['COLUMNREF']['fields'].join('.')
+        columns << col
+      end
+    end
+    # pp columns
+    columns
+  end
   def ReverseParseTree.fromClauseConstr(fromPT)
     #pp fromPT
     if fromPT[0]['JOINEXPR'].nil?
@@ -189,42 +229,42 @@ module ReverseParseTree
     targetList.each do |t|
       node = colNameConstr(t)
       if ( node['alias'] == colName or node['col'].split('.').include?(colName))
-        node      
+        node
         break
       end
     end
     node
   end
-  def ReverseParseTree.predicate_tree_const(wherePT)
-    # if cnt ==0
-    #   nodeName= 'root'
-    #   curNode = Tree::TreeNode.new(nodeName, '')
-    # end
-    # curNode = Tree::TreeNode.new(nodeName, '')
-    logicOpr = wherePT.keys[0].to_s
-    #p logicOpr
-    if logicOpr == 'AEXPR AND' 
-      lexpr = predicate_tree_const(lexpr) 
-      rexpr = predicate_tree_const(rexpr)
-      curNode<<lexpr<<rexpr
-    # or operator are tested as a whole 
-    elsif logicOpr == 'AEXPR OR'
-      lexpr = predicate_tree_const(lexpr) 
-      rexpr = predicate_tree_const(rexpr) 
-      curNode<<lexpr
-      curNode<<rexpr
-    else 
-      # nodeName= "P#{cnt+1}"
-      # cnt= cnt+1
-      h =  Hash.new
-      h['query'] = whereClauseConst(wherePT)
-      # pp wherePT
-      h['location'] = wherePT[logicOpr]['location']
-      h['suspicious_score'] = 0
-      curNode=Tree::TreeNode.new(h['location'], h)
-    end
-    #pp result.to_a
-    curNode
-  end
+  # def ReverseParseTree.predicate_tree_const(wherePT)
+  #   # if cnt ==0
+  #   #   nodeName= 'root'
+  #   #   curNode = Tree::TreeNode.new(nodeName, '')
+  #   # end
+  #   # curNode = Tree::TreeNode.new(nodeName, '')
+  #   logicOpr = wherePT.keys[0].to_s
+  #   #p logicOpr
+  #   if logicOpr == 'AEXPR AND' 
+  #     lexpr = predicate_tree_const(lexpr) 
+  #     rexpr = predicate_tree_const(rexpr)
+  #     curNode<<lexpr<<rexpr
+  #   # or operator are tested as a whole 
+  #   elsif logicOpr == 'AEXPR OR'
+  #     lexpr = predicate_tree_const(lexpr) 
+  #     rexpr = predicate_tree_const(rexpr) 
+  #     curNode<<lexpr
+  #     curNode<<rexpr
+  #   else 
+  #     # nodeName= "P#{cnt+1}"
+  #     # cnt= cnt+1
+  #     h =  Hash.new
+  #     h['query'] = whereClauseConst(wherePT)
+  #     # pp wherePT
+  #     h['location'] = wherePT[logicOpr]['location']
+  #     h['suspicious_score'] = 0
+  #     curNode=Tree::TreeNode.new(h['location'], h)
+  #   end
+  #   #pp result.to_a
+  #   curNode
+  # end
 
 end
