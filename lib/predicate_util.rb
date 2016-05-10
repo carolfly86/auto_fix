@@ -9,17 +9,18 @@ module PredicateUtil
 			colsList=[]
 			r['columns'].to_s.gsub(/[\{\}]/,'').split(',').each do |c|
 				col=c.split('.')
-				cols=Hash.new()
+				column=Column.new
 				if col.count()>0
-					cols['table_alias']=col[0]
-					cols['column']=col[1]
-					cols['expr']=c
+					column.relalias = col[0]
+					column.colname = col[1]
+					column.relname=''
 				else
-					cols['table_alias']=''
-					cols['column']=col[1]
-					cols['expr']=c
+					column.colname=col[0]
+					column.relname=''
+					column.relalias=''
 				end
-				colsList<<cols
+
+				colsList<<column
 			end
 			r['columns']=colsList
 			pcList<<r
@@ -36,7 +37,7 @@ module PredicateUtil
 			# p['columns'].each do |c|
 			# 	predicateQuery =predicateQuery.gsub(c['expr'],c['column'])
 			# end
-			predicateQuery = remove_tbl_alias_in_predicates(predicateQuery,p['columns'])
+			# predicateQuery = remove_tbl_alias_in_predicates(predicateQuery,p['columns'])
 		end
 		predicateQuery=predicateQuery.chomp("#{logicOpr} ") if predicateQuery.end_with?("#{logicOpr} ")
 		return predicateQuery
@@ -49,15 +50,10 @@ module PredicateUtil
 		columnList.uniq
 	end
 
-	def PredicateUtil.remove_tbl_alias_in_predicates(predicateQuery,columns)
-		columns.each do |c|
-			predicateQuery =predicateQuery.gsub(c['expr'],c['column'])
-		end
-		predicateQuery
-	end
+
 	def PredicateUtil.column_str_constr(columnList)
 		columnList.map do |c| 
-				c['expr']
+			c.expr
 		end.join(',')
 	end
 end

@@ -52,6 +52,8 @@ module ReverseParseTree
              ( whereClause.length == 0? '' : ' WHERE '+ whereClause)
 
   end
+
+
   # construct relname from relname and rel alias
   def ReverseParseTree.relnameConstr(rel)
     #pp rel

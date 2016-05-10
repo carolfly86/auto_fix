@@ -12,13 +12,14 @@ class HillClimbingAlg
 	    @bouts = 5
 	    @numericOperators = [['+'], ['-'], ['*'], ['/']]
 	    # @keywords = [ 'AND', 'NOT', 'OR', '']
-	    @oprSymbols= { 
-	    	"~~" => [ ['='],['<>'], ['>'], ['<'],],
-	    	"=" => [ ['<>'], ['>'], ['<'],],
-	    	"<>" => [ ['='], ['>'], ['<'],],
-	    	">"=> [ ['<'], ['<>'], ['='],],
-	    	"<"=> [ ['>'], ['<>'], ['='],]
-	    }
+	    # @oprSymbols= { 
+	    # 	"~~" => [ ['='],['<>'], ['>'], ['<'],],
+	    # 	"=" => [ ['<>'], ['>'], ['<'],],
+	    # 	"<>" => [ ['='], ['>'], ['<'],],
+	    # 	">"=> [ ['<'], ['<>'], ['='],],
+	    # 	"<"=> [ ['>'], ['<>'], ['='],]
+	    # }
+	    @oprSymbols = [ ['='],['<>'], ['>'], ['<'], ['>='], ['<=']]
 	    @fQueryJson=fQueryJson
 	    @tQueryJson=tQueryJson
 	    @pk= @fQueryJson['pkList']
@@ -41,7 +42,6 @@ class HillClimbingAlg
 		loc =  location.to_s
 		parseTree= @fQueryJson['parseTree']
 		rst = parseTree.constr_jsonpath_to_location(location)
-
 		last=rst.count-1
 		rst.delete_at(last)
 
@@ -50,8 +50,6 @@ class HillClimbingAlg
 		
 		generate_candiateList(predicate)
 		generate_candidateConstList()
-		pp @candidateConstList
-		return 
 		@tabuList=[]
 
 		i = 0
@@ -108,7 +106,8 @@ class HillClimbingAlg
 		   		oldVal =@const
 		   		col = element['col'] || @column
 		   		opr = element['opr'] || @opr
-		   		element['const']=rand_constant(col, opr, oldVal)
+		   		colname = col.size == 1 ? col[0] : col[1]
+		   		element['const']=rand_constant(colname, opr)
 			end
 		end
 		puts "element"
@@ -137,7 +136,6 @@ class HillClimbingAlg
 		 		when 'opr'
 		 			'$..AEXPR.name'
 		 		end
-		pp path 		
 		JsonPath.for(predicate).gsub!(path){|v| newVal}
 		return predicate[0]	
 	end
@@ -172,15 +170,18 @@ class HillClimbingAlg
 		puts "newval: #{newVal}"
 		newVal
 	end
-	def rand_constant(col, opr, oldVal)
+	def rand_constant(col, opr)
+		min =  @candidateConstList[col]['min']
+		max = @candidateConstList[col]['max']
 		case opr
 		when '>', '>='
-			newVal = '100'
+			newVal = min
 		when '<', '<='
-			newVal = '10000'
+			newVal = max
 		# when '='
 		else
-			newVal = '1000'
+			randVal = rand(2)
+			newVal = randVal == 1 ? max : min
 		end
 	end
 	def generate_candiateList(predicate)
@@ -189,53 +190,67 @@ class HillClimbingAlg
 		@opr = JsonPath.on(predicate, '$..AEXPR.name').to_a()[0]
 		@const = JsonPath.on(predicate, '$..A_CONST.val').to_a()[0]
 		@candidateColList = DBConn.findRelFieldListByCol(fromPT, @column)
-		# remove @column from candidateColList
-		oldColIdx =@candidateColList.find_index do |item|
-						if @column.count>1
-							@column.join('.') == "#{item.relalias}.#{item.colname}"
-						else
-							@column[0] == item.colname
-						end
-					end
-		@candidateColList.delete_at(oldColIdx)
-		@candidateOprList = @oprSymbols[@opr[0]]
+		# # remove @column from candidateColList
+		# oldColIdx =@candidateColList.find_index do |item|
+		# 				if @column.count>1
+		# 					@column.join('.') == "#{item.relalias}.#{item.colname}"
+		# 				else
+		# 					@column[0] == item.colname
+		# 				end
+		# 			end
+		# @candidateColList.delete_at(oldColIdx)
+		# @candidateOprList = @oprSymbols[@opr[0]]
+		@candidateOprList = @oprSymbols
 
 	end
 	def generate_candidateConstList()
 		@candidateConstList =Hash.new()
 		columns = @candidateColList.clone
-		column = Column.new
-        column.colname = @column.count>1 ? @column.join('.') : @column[0]
-		columns << column
 		columns.each do |col|
-			min = get_min_max_val(col.colname,'min')
-			max = get_min_max_val(col.colname,'max')
 			colVal = Hash.new()
-			colVal={min: min, max: max}
+			['min','max'].each do |type|
+				val = get_min_max_val(col,type)
+				colVal.merge!( val)
+			end
 			@candidateConstList[col.colname] = colVal
-			pp @candidateConstList
 		end
 	end
-	def get_min_max_val(col,type)
+	def get_min_max_val(column,type)
 		# find correct pks (Union of missing pk and satisfied pk)
 		# for now we get them from t_result
+		rewriteCols = Hash.new()
+
 		pkquery = "select #{@pk} from t_result"
 		parseTree= @fQueryJson['parseTree']
 		fromPT = @fQueryJson['parseTree']['SELECT']['fromClause']
 		fields = DBConn.getAllRelFieldList(fromPT)
 		# remove the where clause in query
 		whereClauseReplacement = Array.new()
-		query_with_no_whereClause =  ReverseParseTree.reverseAndreplace(parseTree, '*',whereClauseReplacement)
-		pp query_with_no_whereClause
-
-		pkjoin = @pk.split(',').map{|pkcol|  "pk.#{pkcol} = t.#{pkcol}" }.join(' AND ')
+		query_with_no_whereClause =  ReverseParseTree.reverseAndreplace(parseTree, '',whereClauseReplacement)
+		
+		# rewrite the query to return all fields
+		query_with_no_whereClause,rewriteCols = RewriteQuery.return_all_fields(query_with_no_whereClause)
+		pkjoin = @pk.split(',').map do |pkcol| 
+					if rewriteCols.has_key?(pkcol) 
+						t_pkcol = "t.#{pkcol}"
+					else
+						t_pkcol = "t.#{pkcol}"
+					end
+					"pk.#{pkcol} = #{t_pkcol}" 
+				end.join(' AND ')
+		col = if rewriteCols.has_key?(column.colname) 
+				"t.#{column.relname}_#{column.colname}"
+			else
+				"t.#{column.colname}"
+			end
 		# fromPT = @fQueryJson['parseTree']['SELECT']['fromClause']		
 		query = "with pk as (#{pkquery}), t as (#{query_with_no_whereClause}) 
-				select #{type}(t.#{col})  from t join pk on #{pkjoin}"
+				select #{type}(#{col})  from t join pk on #{pkjoin}"
 
-		pp query
+		# pp query
 		rst = DBConn.exec(query)
-		pp rst[0]
+		rst[0]
+		# pp rst[0]
 
 	end
 

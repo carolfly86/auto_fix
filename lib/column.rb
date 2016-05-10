@@ -1,6 +1,15 @@
 class Column
-	attr_accessor :colname, :relname, :relalias, :datatype, :typcategory
-
+	attr_accessor :colname, :relname, :relalias, :datatype, :typcategory, :colalias
+	attr_reader :fullname, :expr
+	def fullname
+		# relalias.colname
+		@fullname = @relalias.to_s.empty? ? @colname : "#{@relalias}.#{@colname}" 
+		# @expr = @colalias.to_s.empty? ? @expr : "#{@expr} as #{@colalias}"
+	end
+	def expr
+		# relalias.colname
+		@expr = @colalias.to_s.empty? ? self.fullname : "#{self.fullname} as #{@colalias}"
+	end	
 	def columnRef
 		relname = relalias.nil? ? @relname : @relaias
 		[relname, @colname]
@@ -12,9 +21,7 @@ class Column
 		else
 		    false
 		end
-		#pp @ps
 	end
-
 
 	def == (other)
 		if other.class == self.class
@@ -22,6 +29,5 @@ class Column
 		else
 		    false
 		end
-		#pp @ps
 	end
 end 

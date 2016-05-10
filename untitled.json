@@ -1,1 +1,0 @@
-select customer_id, c.address_id, postal_code from customer c join address a on c.address_id = a.address_id where a.address_id >300 and (c.create_date > '2015-01-01' or c.last_update > '2015-01-01');

@@ -45,7 +45,7 @@ selectionErrList = localizeErr.selecionErr()
 fqueryJson['score'] = localizeErr.getSuspiciouScore()
 
 hc=HillClimbingAlg.new(fqueryJson,tqueryJson)
-hc.hill_climbing(128)
+hc.hill_climbing(127)
 return
 
 # localizeErr.similarityBitMap()
