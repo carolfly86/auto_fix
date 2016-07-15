@@ -13,15 +13,15 @@ require_relative 'db_connection'
 class LozalizeError
   # attr_accessor :fPS
   #def initialize(fQuery, tQuery, parseTree)
-  def initialize(fQueryJson,tQueryJson, is_new = true)
-    # @fQuery=fQueryJson['query']
-    # @tQuery=tQueryJson['query']
+  def initialize(fqueryObj,tQueryObj, is_new = true)
+    # @fQuery=fqueryObj['query']
+    # @tQuery=tqueryObj['query']
 
-    @fTable = fQueryJson['table']
-    @tTable =  tQueryJson['table']    
+    @fTable = fqueryObj.table
+    @tTable =  tqueryObj.table  
 
-    @fPS = fQueryJson['parseTree']
-    @tPS=tQueryJson['parseTree']
+    @fPS = fqueryObj.parseTree
+    @tPS=tqueryObj.parseTree
 
     @is_new = is_new
     @test_id = @is_new ? 0 : generate_new_testid()

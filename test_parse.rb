@@ -6,48 +6,24 @@ require 'pg'
 require 'yaml'
 require 'json'
 require 'pry'
-Dir["lib/*"].each {|file| require_relative file }
-
+Dir["lib/*.rb","lib/*/*.rb"].each {|file|  require_relative file }
+# Dir.glob("lib/*.rb").each {|file| puts file; require_relative file }
 opts = Trollop::options do
   banner "Usage: " + $0 + " --script [script] "
   opt :script, "location of sql script", :type => :string
-  opt :expectation, "location of expectation file", :type => :string
+  opt :operation, "m(utate)|t(est)", :type => :string
+  # opt :expectation, "location of expectation file", :type => :string
 end
 #cfg = YAML.load_file( File.join(File.dirname(__FILE__), "config/default.yml") )
 #conn = PG::Connection.open(dbname: cfg['default']['database'], user: cfg['default']['user'], password: cfg['default']['password'])
+script = opts[:script]
+if opts[:operation] =='t'
+	queryTest(script)
+elsif opts[:operation] =='m'
+	randomMutation(script)
+end
 
-fqueryJson = JSON.parse(File.read("sql/#{opts[:script]}.json"))
-tqueryJson = JSON.parse(File.read('sql/true.json'))
-
-fQuery = fqueryJson['query']
-f_pkList = fqueryJson['pkList']
-
-fTable = 'f_result'
-fqueryJson['table'] = fTable
-DBConn.tblCreation(fTable, f_pkList, fQuery)
-
-tQuery = tqueryJson['query']
-t_pkList = tqueryJson['pkList']
-tTable = 't_result'
-tqueryJson['table'] = tTable
-DBConn.tblCreation(tTable, t_pkList, tQuery)
-
-
-fqueryJson['parseTree']= PgQuery.parse(fQuery).parsetree[0]
-tqueryJson['parseTree']=PgQuery.parse(tQuery).parsetree[0]
-
-pp fqueryJson['parseTree']
-
-#
-puts "similarity"
-localizeErr = LozalizeError.new(fqueryJson,tqueryJson)
-selectionErrList = localizeErr.selecionErr()
-fqueryJson['score'] = localizeErr.getSuspiciouScore()
-
-hc=HillClimbingAlg.new(fqueryJson,tqueryJson)
-hc.hill_climbing(127)
 return
-
 # localizeErr.similarityBitMap()
 #puts tQuery.query
 

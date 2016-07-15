@@ -32,4 +32,11 @@ class Hash
     end
     current_path
   end
+  def get_jsonpath_from_location(location)
+    rst=self.constr_jsonpath_to_location(location)
+    raise "Can't find location #{location} in #{self.to_s}" if rst.count==0
+    last=rst.count-1
+    rst.delete_at(last)
+    predicatePath = '$..'+rst.map{|x| "'#{x}'"}.join('.')
+  end
 end

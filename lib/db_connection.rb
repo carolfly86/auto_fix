@@ -1,3 +1,7 @@
+require 'yaml'
+require 'pg'
+
+
 module DBConn
 	@cfg = YAML.load_file( File.join(File.dirname(__FILE__), "../config/default.yml") )
 	@conn = PG::Connection.open(dbname: @cfg['default']['database'], user: @cfg['default']['user'], password: @cfg['default']['password'])

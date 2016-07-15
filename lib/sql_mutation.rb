@@ -9,7 +9,7 @@ class SqlMutation
 		@fromPT =  @ps['SELECT']['fromClause']
 		@fieldList = DBConn.getAllRelFieldList(@fromPT)
 		@typcategoryList = ['U','N','B','S']
-		@eqSymbols = ['=', '>', '<','<>']
+		@eqSymbols = ['=', '>', '<','<>', '>=', '<=']
 		@joinTypes = ['0','1','2','3','4']
 
 		#pp @ps
@@ -52,7 +52,6 @@ class SqlMutation
 			newOpr = @eqSymbols.find_random_dif(oldOpr)
 			p "newOpr: #{newOpr}"
 			mutant['name'][0]= newOpr
-			                    
 			muParseTree = JsonPath.for(jsonParseTree).gsub("$..AEXPR") {|v| ( v['name'][0] == oldOpr ? mutant : v) }.to_hash
 		end
 		ReverseParseTree.reverse(muParseTree)
@@ -166,7 +165,7 @@ class SqlMutation
 		# if rand = 0 , return a field
 		r = Hash.new()
 		term = Hash.new()
-		candidateFileds = datatypeCategory.to_s =='' ? fieldList : fieldList.select{ |f| f.typcategory ==  datatypeCategory}  			
+		candidateFileds = datatypeCategory.to_s =='' ? fieldList : fieldList.select{ |f| f.typcategory ==  datatypeCategory}
 		if type == 0 and candidateFileds.length>0
 			p oldTerm
 			term['COLUMNREF'] = generate_rand_col(candidateFileds, oldTerm)
