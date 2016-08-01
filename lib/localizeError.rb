@@ -13,15 +13,18 @@ require_relative 'db_connection'
 class LozalizeError
   # attr_accessor :fPS
   #def initialize(fQuery, tQuery, parseTree)
-  def initialize(fqueryObj,tQueryObj, is_new = true)
+  def initialize(fQueryObj,tQueryObj, is_new = true)
     # @fQuery=fqueryObj['query']
     # @tQuery=tqueryObj['query']
 
-    @fTable = fqueryObj.table
-    @tTable =  tqueryObj.table  
+    @fQueryObj = fQueryObj
+    @tQueryObj = tQueryObj
 
-    @fPS = fqueryObj.parseTree
-    @tPS=tqueryObj.parseTree
+    @fTable = fQueryObj.table
+    @tTable =  tQueryObj.table  
+
+    @fPS = fQueryObj.parseTree
+    @tPS=tQueryObj.parseTree
 
     @is_new = is_new
     @test_id = @is_new ? 0 : generate_new_testid()
@@ -51,10 +54,19 @@ class LozalizeError
     root =Tree::TreeNode.new('root', '')
     @predicateTree = PredicateTree.new('f',@is_new, @test_id)
     @pdtree = @predicateTree.pdtree_construct(@wherePT,root)
+    # @pdtree.print_tree
+    # pp 'branches'
+    # pp @predicateTree.branches
+    # pp 'nodes'
+    # pp @predicateTree.nodes
+
     #pp whereCondArry.to_a
     @fromCondStr = ReverseParseTree.fromClauseConstr(@fromPT)
     @whereStr = ReverseParseTree.whereClauseConst(@wherePT)
 
+    # create_t_f_union_table
+    # create_t_f_intersect_table
+    # create_t_f_all_table
 
   end
   def generate_new_testid()
@@ -67,6 +79,29 @@ class LozalizeError
     end
   end
 
+  def create_t_f_union_table()
+    query = "select #{@pkSelect} from #{@tTable} UNION select #{@pkSelect} from #{@fTable}"
+    query =QueryBuilder.create_tbl('t_f_union',@pkList,query)
+    puts'create t_f_union'
+    puts query
+    # create
+    DBConn.exec(query)
+  end
+  def create_t_f_intersect_table()
+    query = "select #{@pkSelect} from #{@tTable} INTERSECT select #{@pkSelect} from #{@fTable}"
+    query =QueryBuilder.create_tbl('t_f_union',@pkList,query)
+    puts'create t_f_intersect'
+    puts query
+    # create
+    DBConn.exec(query)
+  end 
+  def create_t_f_all_table()
+      query =  ReverseParseTree.reverseAndreplace(@fParseTree, @pkList,'')
+      query = QueryBuilder.create_tbl('t_f_all',@pkList,query)
+      puts'create t_f_all'
+      puts query
+      DBConn.exec(query)
+  end 
   def similarityBitMap()
     colList = @pkSelect.gsub(/f\./,'').split(',').map{|c| "t.#{c} as #{c}_pk, CASE WHEN t.#{c} is null or f.#{c} is null then 0 else 1 END as #{c}"}.join(',')
     colCnt = ''
@@ -287,6 +322,8 @@ class LozalizeError
     pp predicateArry
     suspicious_score_upd(predicateArry)
 
+    true_query_PT_construct()
+
     tuple_mutation_test(missinPK,'M')
     tuple_mutation_test(unWantedPK,'U')
 
@@ -295,27 +332,37 @@ class LozalizeError
     j['WhereErr'] = whereErrList
     j
   end
-
-  def tuple_mutation_test(pkArry, type)
+  def true_query_PT_construct()
     tWherePT= @tPS['SELECT']['whereClause']
     tPredicateTree = PredicateTree.new('t',false, @test_id)
     root =Tree::TreeNode.new('root', '')
     tPDTree=tPredicateTree.pdtree_construct(tWherePT,root)
+  end
+  def tuple_mutation_test(pkArry, type)
+
     # tPredicateArry =tPredicateTree.predicateArrayGen(tPDTree)
 
     pkArry.each do |pk|
       # pp pk
+      # pp type
       pkCond=QueryBuilder.pkCondConstr(pk)
       if type =='U'
-        branchQuery="select distinct branch_root from tuple_node_test_result where #{pkCond};"
+        # only need exonerating if multiple nodes in a branch are suspicious
+        branchQuery="select branch_root from tuple_node_test_result where #{pkCond} group by branch_root having count(1) >1;"
         res = DBConn.exec(branchQuery)
-        res.each do |branch|
-            tupleMutation = TupleMutation.new(@test_id,pk,type,branch,@fPS,tWherePT)
-            tupleMutation.unwanted_to_satisfied()
-        end
+        # res.each do |branch|
+        #   tupleMutation = TupleMutation.new(@test_id,pk,type,branch,@fQueryObj,@tQueryObj)
+        #   tupleMutation.unwanted_to_satisfied()
+        # end
       else
-         tupleMutation = TupleMutation.new(@test_id,pk,type,'',@fPS,tWherePT) 
-         tupleMutation.missing_to_excluded
+      # type == 'M'
+         # only need exonerating if multiple branches are suspicious
+          branchQuery="select distinct branch_root from tuple_node_test_result where #{pkCond};"
+          res = DBConn.exec(branchQuery)
+          if res.count()>1
+            tupleMutation = TupleMutation.new(@test_id,pk,type,@predicateTree.branches,@fQueryObj,@tQueryObj) 
+            tupleMutation.missing_to_excluded
+          end
       end
     end
 
@@ -395,6 +442,8 @@ class LozalizeError
             nodeQuery_new = nodeQuery +' AND ' + currentNode.content['query']           
             # suspicious score+ for each node fails missing tuple
             if type =='M'
+              # puts 'nodeQuery_new'
+              # pp nodeQuery_new
               res = DBConn.exec(nodeQuery_new)
               #pp res[0]['count']
               if res[0]['count'].to_i==0
@@ -456,6 +505,7 @@ class LozalizeError
              ( count_only ?  'count()': @pkSelect.gsub('f.','t.'))+
              " FROM #{@tTable} t LEFT JOIN #{@fTable} f ON #{@pkJoin} where #{pkNull} IS NULL"
     res = DBConn.exec(query)
+    puts query
     return query, res
   end
 

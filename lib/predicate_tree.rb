@@ -5,10 +5,10 @@ class PredicateTree
   # def initialize(support,behavior)
   # end
   # attr_accessor :count, :content
-  attr_reader :count, :pdtree
+  attr_reader :node_count, :pdtree, :branches, :branch_count, :nodes
   def initialize(type,is_new, test_id)
-    @count = 0
-    @phcount=0
+    @node_count = 0
+    @branch_count=0
     #@wherePT=wherePT
     @type=type
     
@@ -16,6 +16,8 @@ class PredicateTree
     @nqTblName = 'node_query_mapping'
     node_query_mapping_create() if is_new
     @test_id = test_id
+    @branches = []
+    @nodes = []
     #pdtree_construct(wherePT, @pdtree )
     # curNode = Tree::TreeNode.new(nodeName, '')    
   end
@@ -54,8 +56,8 @@ class PredicateTree
       curNode<<lexprNode unless curNode==lexprNode 
       curNode<<rexprNode unless curNode==rexprNode 
     else 
-      @count=@count+1
-      nodeName= "N#{@count}"
+      @node_count=@node_count+1
+      nodeName= "N#{@node_count}"
       h =  Hash.new
       h['query'] = ReverseParseTree.whereClauseConst(wherePT)
       # pp wherePT
@@ -65,6 +67,8 @@ class PredicateTree
       # pp h
       curNode=Tree::TreeNode.new(nodeName, h)
       # p @nqTblName
+
+      @nodes << transfer_child_to_node(curNode)
       node_query_mapping_insert( nodeName,h['query'],h['location'],h['columns'],h['suspicious_score'])
     end
     #pp result.to_a
@@ -127,22 +131,44 @@ class PredicateTree
         # ln.print_tree
         # p 'rn'
         # rn.print_tree
-        phName="PH#{@phcount}"
+        phName="PH#{@branch_count}"
         ph =Tree::TreeNode.new(phName, '')
         ln_append=ln.detached_subtree_copy
         append_to_end(ln_append,rn)
         # p 'ln_append'
-        # ln_append.print_tree
+        ln_append.print_tree
         ph<<ln_append #unless curNode==newNode
         curNode<<ph
         # p 'ph'
         # ph.print_tree
         # p 'curNode'
         # curNode.print_tree
-        @phcount=@phcount+1
+
+        br = Branch.new()
+        br.name = phName
+        br.nodes =[]
+        @branches << br
+
+        br.nodes<<transfer_child_to_node(ln_append)
+
+        ln_append.children.each do |child|
+          br.nodes<<transfer_child_to_node(child)
+        end
+
+        @branch_count=@branch_count+1
       end
     end
 
+  end
+
+  def transfer_child_to_node(child)
+      nd = Node.new()
+      nd.name=child.name
+      nd.query = child.content['query']
+      nd.location = child.content['location']
+      nd.columns = child.content['columns']
+      nd.suspicious_score = child.content['suspicious_score']
+      nd
   end
   def predicateArrayGen(pdtree)
     predicateArry =Array.new()

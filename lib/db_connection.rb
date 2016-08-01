@@ -12,6 +12,7 @@ module DBConn
 
   def DBConn.tblCreation(tblName, pkList, query)
     q = QueryBuilder.create_tbl(tblName, pkList, query)
+    puts q
     exec(q)
   end
 
@@ -57,13 +58,7 @@ module DBConn
             field.relalias = relAlias.nil? ? relName : relAlias['ALIAS']['aliasname']
             field.datatype = c['data_type']
             field.typcategory = c['typcategory']
-            # field = {}
 
-            # field['rel_alias'] = relAlias.nil? ? relName : relAlias['ALIAS']['aliasname']
-            # field['rel_name'] = relName  
-            # field['column_name'] = c['column_name']
-            # field['data_type'] = c['data_type']
-            # field['typcategory'] = c['typcategory']
             fieldsList << field
           end
       end 
@@ -72,9 +67,7 @@ module DBConn
       #pp fieldsList
     end
 
-
-
-      # Given a column, Find all the relations(tbls) in FROM Clause with matching data type category
+    # Given a column in the format of ['relalias','colname'] or ['colname'], Find all the relations(tbls) in FROM Clause with matching data type category
     def DBConn.findRelFieldListByCol(fromPT, column)
       colRelName = ''
       if column.length >1
@@ -90,8 +83,8 @@ module DBConn
           end
 
         end
+        colRelName = colRelAlias if colRelName.to_s.empty?
         query = QueryBuilder.find_cols_by_data_typcategory(colRelName, '',colName) unless colRelName.to_s.empty?
-
         rst = exec(query)
         colDataTypeCateory = rst.to_a[0]['typcategory'] if rst.count()>0
         # .to_a[0]['typcategory']
@@ -147,11 +140,18 @@ module DBConn
       colList=  exec(query).to_a
       fieldsList = []
       colList.each do |c|
-        field = {}
-        field['column_name'] = c['column_name']
-        field['data_type'] = c['data_type']
-        field['typcategory'] = c['typcategory']
+        # field = {}
+        # field['column_name'] = c['column_name']
+        # field['data_type'] = c['data_type']
+        # field['typcategory'] = c['typcategory']
+            field = Column.new
+            field.colname = c['column_name']
+            field.relname = tbl 
+            field.relalias = tbl
+            field.datatype = c['data_type']
+            field.typcategory = c['typcategory']
         fieldsList << field
       end
+    
     end
 end

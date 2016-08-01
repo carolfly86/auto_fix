@@ -1,23 +1,25 @@
 module PredicateUtil
-	def PredicateUtil.get_predicateList(query)
-		# pp query
+	def PredicateUtil.get_predicateList(query,fromPT)
 		res=DBConn.exec(query)
 
 		pcList = Array.new()
 		num_fields=res.num_fields()
 		res.each do |r|
 			colsList=[]
+			# Convert each column to Column Obj
 			r['columns'].to_s.gsub(/[\{\}]/,'').split(',').each do |c|
 				col=c.split('.')
 				column=Column.new
-				if col.count()>0
-					column.relalias = col[0]
+				if col.count()>1
+					# column.relalias = col[0]
 					column.colname = col[1]
-					column.relname=''
+					column.updateRelname(fromPT)
+					# column.relname=''
 				else
 					column.colname=col[0]
-					column.relname=''
-					column.relalias=''
+					column.updateRelname(fromPT)
+					# column.relname=''
+					# column.relalias=''
 				end
 
 				colsList<<column
@@ -28,18 +30,24 @@ module PredicateUtil
 		pcList
 
 	end
-	def PredicateUtil.get_predicateQuery(predicateList, type)
-		logicOpr = type=='U' ? 'AND' : 'OR'
+	def PredicateUtil.get_predicateQuery(predicateList)
+		# logicOpr = type=='U' ? 'AND' : 'OR'
+
 		predicateQuery=''
-		predicateList.each do |p|
-			# columnList += p['columns']
-			predicateQuery << p['query'] +" #{logicOpr} "
-			# p['columns'].each do |c|
-			# 	predicateQuery =predicateQuery.gsub(c['expr'],c['column'])
-			# end
-			# predicateQuery = remove_tbl_alias_in_predicates(predicateQuery,p['columns'])
-		end
-		predicateQuery=predicateQuery.chomp("#{logicOpr} ") if predicateQuery.end_with?("#{logicOpr} ")
+		branches = predicateList.map{|p| p['branch_root']}.uniq 
+		
+		queryBranches = Array.new()
+		branches.each do |b|
+			branch = Array.new()
+			predicateList.find_all_hash('branch_root',b).each do |n|
+				branch<<n['query']
+			end
+			branchQuery = '('+branch.join(' AND ')+')'
+			queryBranches << branchQuery unless queryBranches.include?(branchQuery)
+		end	
+		
+		predicateQuery = queryBranches.join(' OR ')
+		# pp predicateQuery
 		return predicateQuery
 	end
 	def PredicateUtil.get_predicateColumns(predicateList)

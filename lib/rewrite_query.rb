@@ -29,6 +29,7 @@ module RewriteQuery
     colList.group_by{|f| f.colname}.each do |key, val|
       if val.size >1
         val.each do |col|
+          pp 
           col.colalias = col.relname.to_s.empty? ? "#{col.relalias}_#{col.colname}" : "#{col.relname}_#{col.colname}"
         end
       else

@@ -22,7 +22,7 @@ class Hash
     self.keys.each do |key|
       value = self[key]
       if value.is_a? Hash
-        if JsonPath.new('$..location').on(value).any? {|v| v == location}
+        if JsonPath.new('$..location').on(value).any? {|v| v.to_s == location.to_s}
           # if value.is_a? Hash
             current_path << key
             value.constr_jsonpath_to_location(location,current_path)

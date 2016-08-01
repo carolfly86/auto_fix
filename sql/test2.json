@@ -1,5 +1,4 @@
 {
-  "query": "select customer_id, c.address_id, postal_code from customer c join address a on c.address_id = a.address_id where c.address_id < 556 and (c.create_date > '2015-01-01' or c.last_update > '2014-01-01');",
-  "pkList": "customer_id"
+  "query": "SELECT emp_no AS emp_no, from_date AS from_date, salary AS salary FROM salaries WHERE emp_no > 499986 AND ( from_date > '1990-01-01' OR emp_no > 20000 )",
+  "pkList": "emp_no,from_date"
 }
-

@@ -58,7 +58,7 @@ module QueryBuilder
     end
     def QueryBuilder.create_tbl(tblName, pkList, selectQuery)
       insertQuery = selectQuery.dup
-      insert = insertQuery.insert(insertQuery.downcase.index('from'), " INTO #{tblName} ")
+      insert = insertQuery.insert(insertQuery.downcase.index(' from '), " INTO #{tblName} ")
       pkCreate = pkList.to_s.empty? ? '' : "ALTER TABLE #{tblName} ADD PRIMARY KEY (#{pkList});" 
       query =  "DROP TABLE IF EXISTS #{tblName}; #{insert}; #{pkCreate}"
     end
@@ -100,10 +100,18 @@ module QueryBuilder
     pk.map{|pk|  pk['val'].to_s.str_int_rep }.join(', ')
     #p pkcond
   end
+  def QueryBuilder.pkValWithColConstr(pk)
+    pk.map{|pk|  "#{pk['val'].to_s.str_int_rep} as #{pk['col']}" }.join(', ')
+    #p pkcond
+  end
   def QueryBuilder.pkColConstr(pk)
     pk.map{|pk|  pk['col'] }.join(', ')
     #p pkcond
   end
+  # def QueryBuilder.pkColWithAliasConstr(pk)
+  #   pk.map{|pk|  "#{pk['col']} as #{pk['colalias']}" }.join(', ')
+  #   #p pkcond
+  # end
   def QueryBuilder.pkJoinConstr(pk)
     pk.map{|pk|  "t.#{pk['col']} = f.#{pk['col']}" }.join(' AND ')
     #p pkcond

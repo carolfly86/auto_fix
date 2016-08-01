@@ -16,18 +16,18 @@ describe Column do
 	        expect(@col).to be_an_instance_of Column
 	    end
 	end
-	describe "!=" do
-		context "given a column of different relname and colname" do
-			it "should returns true" do
-				expect (@co1!= @col2).to be true
-			end
-		end
-		# context "given a column of same relname and colname" do
-		# 	it "should returns false" do
-		# 		expect(@co1!= @col3).to be false
-		# 	end
-		# end
-	end
+	# describe "!=" do
+	# 	context "given a column of different relname and colname" do
+	# 		it "should returns true" do
+	# 			expect (@co1!= @col2).to be true
+	# 		end
+	# 	end
+	# 	# context "given a column of same relname and colname" do
+	# 	# 	it "should returns false" do
+	# 	# 		expect(@co1!= @col3).to be false
+	# 	# 	end
+	# 	# end
+	# end
 	describe "==" do
 		context "given a column of different relname and colname" do
 			it "should returns false" do

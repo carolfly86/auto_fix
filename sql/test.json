@@ -1,5 +1,4 @@
 {
-  "query": "select customer_id, c.address_id, postal_code from customer c join address a on c.address_id = a.address_id where a.postal_code like '1____' and (c.create_date > '2015-01-01' or c.last_update > '2014-01-01');",
-  "pkList": "customer_id"
+  "query": "select emp_no,from_date,salary from salaries where salary >120000 and (from_date = '1991-02-23' or emp_no =37558)",
+  "pkList": "emp_no,from_date"
 }
-

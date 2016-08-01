@@ -1,19 +1,17 @@
 class QueryObj
 	# given a parse tree, generate a new predicate to replace the predicate at predicatePath
-	def generate_neighbor_program(location)
-
-
+	def generate_neighbor_program(location,optimized=1)
 		predicatePath = @parseTree.get_jsonpath_from_location(location)
 		predicate = JsonPath.new(predicatePath).on(@parseTree)
-		pp 'predicate'
-		pp predicate
+
 		fromPT = @parseTree['SELECT']['fromClause']
 
 		# all columns of the same data type
 		target = get_mutationTargets(predicate)
+		pp target
 		candidateColList = DBConn.findRelFieldListByCol(fromPT, target['column'])
 
-		generate_candidateConstList(candidateColList)
+		# generate_candidateConstList(candidateColList)
 		# generate_candidateConstList()
 		# mutateType = rand(3)
 		mutateType = rand(7)+1
@@ -47,9 +45,14 @@ class QueryObj
 		   		col = element['col'] || target['column']
 		   		opr = element['opr'] || target['opr']
 		   		colname = col.size == 1 ? col[0] : col[1]
-		   		datatypeCategory = target['const'].to_s.typCategory
 		   		# element['const']=rand_constant(colname, opr)
-		   		element['const']=rand_constant(datatypeCategory)
+		   		if optimized ==0
+		   			datatypeCategory = target['const'].to_s.typCategory
+		   			element['const']=rand_constant(datatypeCategory)
+		   		else
+		   			colObj = colRefToColObj(col,candidateColList)
+		   			element['const']=optimized_rand_constant(colObj, opr )
+		   		end
 			end
 		# end
 		puts "element"
@@ -59,14 +62,11 @@ class QueryObj
 		end
 		newPS=JsonPath.for(@parseTree).gsub(predicatePath){|v| newPredicate}
 		newQuery = ReverseParseTree.reverse(newPS.obj)
-		newQueryJson = @queryJson.clone
-
-		newQueryJson['query'] = newQuery
-		newQueryJson['parseTree'] = newPS.obj
-		newQueryJson['score']=Hash.new()
+		options = {:query=>newQuery,:parseTree=>newPS.obj,:pkList=>self.pkList, :table=>'neighbor'}
+		newQueryObj = QueryObj.new(options)
 		pp "new query"
 		pp newQuery
-		return newQueryJson
+		return newQueryObj
 	end
 	def mutatePredicate(type,newVal,predicate)
  		path = case type
@@ -81,6 +81,21 @@ class QueryObj
 		return predicate[0]	
 	end
 
+
+# given a col in the format of ['relalias','colname'] or ['colname'] return the Column object in candidateColList
+	def colRefToColObj(col,candidateColList)
+		candidateColList.each do |candidate|
+			if col.length >1 # col = ['relalias','colname']
+				if candidate.colname == col[1] and candidate.relalias == col[0]
+					return candidate
+				end
+	        else # col = ['colname']
+				if candidate.colname == col[0]
+					return candidate
+				end
+	        end
+		end
+	end
 	# def rand_candicate(type,oldVal,candidateList)
 	# 	# element = Hash.new()
 	# 	case type
@@ -151,11 +166,27 @@ class QueryObj
 
 # below functions are used for optimezed random constant generating
 
-	def optimized_rand_constant(col, opr, candidateConstList)
+	def optimized_rand_constant(col, opr)
 		# candidateConstList = generate_candidateConstList()
-		min = candidateConstList[col]['min']
-		max = candidateConstList[col]['max']
-		case opr
+		candidateConstList = get_candidateConstList(col)
+
+		min = ''
+		max = ''
+		candidateConstList.each do |candidate|
+			pp candidate
+			if candidate['key'] == "#{col.relname}_#{col.colname}_min"
+				min =  candidate['value']
+			elsif candidate['key'] == "#{col.relname}_#{col.colname}_max"
+				max = candidate['value']
+			end
+		end
+		pp candidateConstList
+		pp col
+		pp opr
+		puts "min: #{min}"
+		puts "max: #{max}"
+
+		case opr[0].to_s
 		when '>', '>='
 			newVal = min
 		when '<', '<='
@@ -165,20 +196,28 @@ class QueryObj
 			randVal = rand(2)
 			newVal = randVal == 1 ? max : min
 		end
+		pp "newval: #{newVal}"
+		newVal
 	end
-	def generate_candidateConstList(candidateColList)
-		candidateConstList =Hash.new()
-		# columns = candidateColList.clone
-		candidateColList.each do |col|
-			colVal = Hash.new()
-			['min','max'].each do |type|
-				val = get_min_max_val(col,type)
-				colVal.merge!( val)
-			end
-			candidateConstList[col.colname] = colVal
-		end
-		candidateConstList
+	def get_candidateConstList(col)
+		query = %(select key,value from t_result_stat 
+		where key in ('#{col.relname}_#{col.colname}_min','#{col.relname}_#{col.colname}_max'))
+	    pp query
+		DBConn.exec(query)
 	end
+	# def get_candidateConstList(candidateColList)
+	# 	candidateConstList =Hash.new()
+	# 	# columns = candidateColList.clone
+	# 	candidateColList.each do |col|
+	# 		colVal = Hash.new()
+	# 		['min','max'].each do |type|
+	# 			val = get_min_max_val(col,type)
+	# 			colVal.merge!( val)
+	# 		end
+	# 		candidateConstList[col.colname] = colVal
+	# 	end
+	# 	candidateConstList
+	# end
 
 	def get_min_max_val(column,type)
 		# find correct pks (Union of missing pk and satisfied pk)
@@ -211,7 +250,7 @@ class QueryObj
 		query = "with pk as (#{pkquery}), t as (#{query_with_no_whereClause}) 
 				select #{type}(#{col})  from t join pk on #{pkjoin}"
 
-	    # pp query
+	    pp query
 		rst = DBConn.exec(query)
 		rst[0]
 
