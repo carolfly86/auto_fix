@@ -1,4 +1,0 @@
-default:
-  database: 'employees'
-  user: 'yguo'
-  password: 'password'
