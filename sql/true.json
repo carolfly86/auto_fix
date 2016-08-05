@@ -1,4 +1,4 @@
 {
-  "query": "select emp_no,from_date,salary from salaries where salary >100000 and (from_date = '1990-02-23' or emp_no =37558)",
+  "query": "select emp_no,from_date,salary from salaries where emp_no = 50481 and from_date = '1996-12-23'",
   "pkList": "emp_no, from_date"
 }

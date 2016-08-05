@@ -6,6 +6,7 @@ require 'pg'
 require 'yaml'
 require 'json'
 require 'pry'
+require 'set'
 Dir["lib/*.rb","lib/*/*.rb"].each {|file|  require_relative file }
 # Dir.glob("lib/*.rb").each {|file| puts file; require_relative file }
 opts = Trollop::options do

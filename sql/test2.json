@@ -2,3 +2,11 @@
   "query": "SELECT emp_no AS emp_no, from_date AS from_date, salary AS salary FROM salaries WHERE emp_no > 499986 AND ( from_date > '1990-01-01' OR emp_no > 20000 )",
   "pkList": "emp_no,from_date"
 }
+,
+		{
+		"query": "select emp_no,from_date,salary from salaries where emp_no = 50482 and from_date = '1996-12-10'",
+		"pkList": "emp_no,from_date"
+		}		{
+		"query": "select emp_no,from_date,salary from salaries where emp_no = 50481",
+		"pkList": "emp_no,from_date"
+		},

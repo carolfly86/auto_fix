@@ -53,12 +53,16 @@ class LozalizeError
     # generate predicate tree from where clause
     root =Tree::TreeNode.new('root', '')
     @predicateTree = PredicateTree.new('f',@is_new, @test_id)
-    @pdtree = @predicateTree.pdtree_construct(@wherePT,root)
-    # @pdtree.print_tree
-    # pp 'branches'
-    # pp @predicateTree.branches
-    # pp 'nodes'
-    # pp @predicateTree.nodes
+    # pp @wherePT
+    @predicateTree.build_full_pdtree(@wherePT,root)
+    @pdtree = @predicateTree.pdtree
+    @pdtree.print_tree
+    pp 'branches'
+    pp @predicateTree.branches
+    pp 'nodes'
+    pp @predicateTree.nodes
+
+    # @predicateTree.node_query_mapping_insert()
 
     #pp whereCondArry.to_a
     @fromCondStr = ReverseParseTree.fromClauseConstr(@fromPT)
@@ -293,8 +297,7 @@ class LozalizeError
     unWantedPK = pkArryGen(res)
 
     tnTableCreation('tuple_node_test_result') if @is_new
-    # Join type test
-    # jointypeErr(query,'Unwanted')
+
     if unWantedPK.count()>0
       p 'Unwanted Pk'
       # create unwanted_tuple_branch table
@@ -310,22 +313,25 @@ class LozalizeError
     # Join type test
     # Join condition test
     # where clause test
-    if missinPK.count()>0
-      p 'Missing PK'
+    # if missinPK.count()>0
+    #   p 'Missing PK'
 
-      whereErrList = whereCondTest(missinPK,'M')
-      joinErrList = jointypeErr(query,'M')
-    end 
+    #   whereErrList = whereCondTest(missinPK,'M')
+    #   joinErrList = jointypeErr(query,'M')
+    # end
+
     #p joinErrList.to_a 
     #p whereErrList.to_a
-    predicateArry = @predicateTree.predicateArrayGen(@pdtree)
-    pp predicateArry
-    suspicious_score_upd(predicateArry)
-
+    # predicateArry = @predicateTree.predicateArrayGen(@pdtree)
+    # pp predicateArry
+    suspicious_score_upd(@predicateTree.branches)
     true_query_PT_construct()
-
     tuple_mutation_test(missinPK,'M')
     tuple_mutation_test(unWantedPK,'U')
+
+    # remove constraint_nodes in node_query_mapping
+    query = "delete from node_query_mapping where test_id = #{@test_id} and type = 't'"
+    DBConn.exec(query)
 
     j = Hash.new
     j['JoinErr'] = joinErrList
@@ -336,7 +342,9 @@ class LozalizeError
     tWherePT= @tPS['SELECT']['whereClause']
     tPredicateTree = PredicateTree.new('t',false, @test_id)
     root =Tree::TreeNode.new('root', '')
-    tPDTree=tPredicateTree.pdtree_construct(tWherePT,root)
+    tPredicateTree.build_full_pdtree(tWherePT,root)
+    # tPredicateTree.node_query_mapping_insert()
+
   end
   def tuple_mutation_test(pkArry, type)
 
@@ -348,16 +356,23 @@ class LozalizeError
       pkCond=QueryBuilder.pkCondConstr(pk)
       if type =='U'
         # only need exonerating if multiple nodes in a branch are suspicious
-        branchQuery="select branch_root from tuple_node_test_result where #{pkCond} group by branch_root having count(1) >1;"
+        branchQuery="select distinct branch_name from tuple_node_test_result where #{pkCond};" 
+        pp branchQuery
         res = DBConn.exec(branchQuery)
-        # res.each do |branch|
-        #   tupleMutation = TupleMutation.new(@test_id,pk,type,branch,@fQueryObj,@tQueryObj)
-        #   tupleMutation.unwanted_to_satisfied()
-        # end
-      else
-      # type == 'M'
+        res.each do |branch_name|
+          # distinct_query = "select distinct node_name from node_query_mapping where branch_name = '#{branch_name['branch_name']}'"
+          # distinct_nodes =DBConn.exec(distinct_query)
+          # if distinct_nodes.count()>1
+            branch =[]
+            branch << @predicateTree.branches.find{ |br| br.name == branch_name['branch_name'] }
+            pp branch
+            tupleMutation = TupleMutation.new(@test_id,pk,type,branch,@fQueryObj,@tQueryObj)
+            tupleMutation.unwanted_to_satisfied()
+          # end
+        end
+      elsif type == 'M'
          # only need exonerating if multiple branches are suspicious
-          branchQuery="select distinct branch_root from tuple_node_test_result where #{pkCond};"
+          branchQuery="select distinct branch_name from tuple_node_test_result where #{pkCond};"
           res = DBConn.exec(branchQuery)
           if res.count()>1
             tupleMutation = TupleMutation.new(@test_id,pk,type,@predicateTree.branches,@fQueryObj,@tQueryObj) 
@@ -366,15 +381,14 @@ class LozalizeError
       end
     end
 
-    # remove constraint_nodes in node_query_mapping
-    query = "delete from node_query_mapping where test_id = #{@test_id} and type = 't'"
-    DBConn.exec(query)
   end
 
-  def suspicious_score_upd(predicateArry)
-    predicateArry.each do |p|
-      query = "suspicious_score = #{p['suspicious_score']}"
-      @predicateTree.node_query_mapping_upd(p['name'],query)
+  def suspicious_score_upd(predicate_tree_branches)
+    predicate_tree_branches.each do |br|
+      br.nodes.each do |nd|
+        query = "suspicious_score = #{nd.suspicious_score}"
+        @predicateTree.node_query_mapping_upd(br.name,nd.name,query)
+      end
     end
   end
   # create tuple node table
@@ -382,7 +396,7 @@ class LozalizeError
       q = QueryBuilder.create_tbl(tableName, '', "select #{@pkSelect} from #{@fTable} f where 1 = 0")
       DBConn.exec(q)
 
-      q="ALTER TABLE #{tableName} add column test_id int, add column node_name varchar(30), add column branch_root varchar(30), add column type varchar(5);"
+      q="ALTER TABLE #{tableName} add column test_id int, add column node_name varchar(30), add column branch_name varchar(30), add column type varchar(5);"
       DBConn.exec(q)
   end
   def pkArryGen(res)
@@ -422,7 +436,7 @@ class LozalizeError
     # p selectQuery
     pkArry.each do |pk|
 
-      @pdtree.children.each do |branch|
+      @predicateTree.branches.each do |branch|
         branchQuery = selectQuery + QueryBuilder.pkCondConstr(pk)
         nodeQuery = branchQuery
         pkVal = QueryBuilder.pkValConstr(pk)
@@ -430,62 +444,64 @@ class LozalizeError
         # branch.print_tree
         # pp'--------'
         currentNode = branch
-        while currentNode.has_children?
-          currentNode = currentNode.children[0]
+        branch.nodes.each do |node|
+          # currentNode = currentNode.children[0]
           # currentNode.print_tree
           # # p currentNode.has_children?
           # pp currentNode.name
           # pp currentNode.content
-          unless currentNode.name=~ /^PH*/
+          # unless currentNode.name=~ /^PH*/
           # content = node.content
-            branchQuery = branchQuery+' AND ' + currentNode.content['query']
-            nodeQuery_new = nodeQuery +' AND ' + currentNode.content['query']           
-            # suspicious score+ for each node fails missing tuple
-            if type =='M'
-              # puts 'nodeQuery_new'
+          branchQuery = branchQuery+' AND ' + node.query
+          nodeQuery_new = nodeQuery +' AND ' + node.query
+          # suspicious score+ for each node fails missing tuple
+          if type =='M'
+            # puts 'nodeQuery_new'
+            # pp nodeQuery_new
+            res = DBConn.exec(nodeQuery_new)
+            #pp res[0]['count']
+            if res[0]['count'].to_i==0
+              # p 'failed!'
               # pp nodeQuery_new
-              res = DBConn.exec(nodeQuery_new)
-              #pp res[0]['count']
-              if res[0]['count'].to_i==0
-                # p 'failed!'
-                # pp nodeQuery_new
-                currentNode.content['suspicious_score'] +=1 
-                # pp currentNode.content
-                query = "INSERT INTO tuple_node_test_result values (#{pkVal}, #{@test_id},'#{currentNode.name}', '#{branch.name}','M')"
-                DBConn.exec(query)
-              else
-                # p 'passed'
-                # pp nodeQuery
-                nodeQuery = nodeQuery_new  
-              end
+              node.suspicious_score +=1
+              # pp currentNode.content
+              query = "INSERT INTO tuple_node_test_result values (#{pkVal}, #{@test_id},'#{node.name}', '#{branch.name}','M')"
+              DBConn.exec(query)
+            else
+              # p 'passed'
+              # pp nodeQuery
+              nodeQuery = nodeQuery_new
             end
-          end  
+          end
+          # end
 
         end
 
         # suspicious score+ for each BRANCH that passes unwanted tuple
         if type =='U'
+          # puts'U'
+          # puts branchQuery
           res = DBConn.exec(branchQuery)
           #pp res[0]['count']
           if res[0]['count'].to_i>0
             # p 'failed'
             # pp branchQuery
+            # pp currentNode.has_children?
             currentNode = branch
-            
-            while currentNode.has_children?
-              currentNode = currentNode.children[0]
-              unless currentNode.name=~ /^PH*/ 
-                query = "INSERT INTO tuple_node_test_result values (#{pkVal},#{@test_id},'#{currentNode.name}', '#{branch.name}','U')"
-                DBConn.exec(query)
-                currentNode.content['suspicious_score'] +=1
-              end
+            # puts 'currentNode'
+            # pp currentNode
+            branch.nodes.each do |node|
+              # currentNode = currentNode.children[0]
+              # unless currentNode.name=~ /^PH*/ 
+              query = "INSERT INTO tuple_node_test_result values (#{pkVal},#{@test_id},'#{node.name}', '#{branch.name}','U')"
+              DBConn.exec(query)
+              node.suspicious_score +=1
+              # end
             end
           end
         end 
       end
     end
-    # whereCondArry
-
   end
 
 

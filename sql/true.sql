@@ -1,1 +1,0 @@
-select q.label, a.type from questions q join answers a on q.id = a.questionid where q.surveyid=2095;

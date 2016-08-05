@@ -1,1 +1,0 @@
-select q.label, a.type +1 as type from questions q CROSS join answers a

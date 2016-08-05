@@ -10,7 +10,7 @@ class QueryObj
   OPR_SYMBOLS = [ ['='],['<>'], ['>'], ['<'], ['>='], ['<=']]
 
   def initialize(options)
-    script=options.fetch(:script,'')
+    script=options.fetch(:queryJson,'')
     @table=options.fetch(:table)
     @score=options.fetch(:score, Hash.new)
     # initialize with script

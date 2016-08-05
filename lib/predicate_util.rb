@@ -1,5 +1,6 @@
 module PredicateUtil
 	def PredicateUtil.get_predicateList(query,fromPT)
+		# pp query
 		res=DBConn.exec(query)
 
 		pcList = Array.new()
@@ -34,18 +35,16 @@ module PredicateUtil
 		# logicOpr = type=='U' ? 'AND' : 'OR'
 
 		predicateQuery=''
-		branches = predicateList.map{|p| p['branch_root']}.uniq 
-		
+		branches = predicateList.map{|p| p['branch_name']}.uniq
 		queryBranches = Array.new()
 		branches.each do |b|
 			branch = Array.new()
-			predicateList.find_all_hash('branch_root',b).each do |n|
+			predicateList.find_all_hash('branch_name',b).each do |n|
 				branch<<n['query']
 			end
 			branchQuery = '('+branch.join(' AND ')+')'
 			queryBranches << branchQuery unless queryBranches.include?(branchQuery)
-		end	
-		
+		end
 		predicateQuery = queryBranches.join(' OR ')
 		# pp predicateQuery
 		return predicateQuery
