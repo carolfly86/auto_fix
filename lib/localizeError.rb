@@ -379,10 +379,10 @@ class LozalizeError
          #  branchQuery="select distinct branch_name from tuple_node_test_result where #{pkCond};"
          #  # pp branchQuery
          #  res = DBConn.exec(branchQuery)
-          if res.count()>1
-            tupleMutation = TupleMutation.new(@test_id,pk,type,@predicateTree.branches,@fQueryObj,@tQueryObj,@tPredicateTree) 
-            tupleMutation.missing_to_excluded
-          end
+          # if res.count()>1
+          tupleMutation = TupleMutation.new(@test_id,pk,type,@predicateTree.branches,@fQueryObj,@tQueryObj,@tPredicateTree) 
+          tupleMutation.missing_to_excluded
+          # end
       end
     end
 
@@ -423,7 +423,7 @@ class LozalizeError
   end
 
   def getSuspiciouScore()
-    query = "select * from node_query_mapping where test_id = #{@test_id}"
+    query = "select location, sum(suspicious_score) as suspicious_score from node_query_mapping where test_id = #{@test_id} group by location"
     rst = DBConn.exec(query)
     score = Hash.new()
     score["totalScore"] = 0
@@ -434,6 +434,25 @@ class LozalizeError
     end
     score
   end
+  # def get_test_result()
+  #   query = "select * from node_query_mapping where test_id = #{@test_id}"
+  #   rst = DBConn.exec(query)
+  #   score = Hash.new()
+  #   score["totalScore"] = 0
+  #   rst.each do |t|
+  #     score["totalScore"] += t['suspicious_score'].to_i
+  #     loc = t['location']
+  #     query = t['query']
+  #     columns = t['columns']
+  #     node = "#{t['branch_name']}-#{t['node_name']}"
+  #     score[node] = {'location'=> loc,
+  #       'query'=> query,
+  #       'columns'=> columns.gsub('{',''),
+  #       'score'=> t['suspicious_score']
+  #     }
+  #   end
+  #   score
+  # end
 
   def whereCondTest(pkArry, type)
 

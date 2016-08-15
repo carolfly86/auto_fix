@@ -203,7 +203,11 @@ class TupleMutation
 			bn_pair = missing_branch_node_pairs(i)
 			# mutationTbl_create()
 			mutationTbl_upd(bn_pair,updateTup)
+
 			# pp @constraintPredicateQuery
+			# if @pk.any?{|pk| pk['col'] = 'emp_no' and pk['val'] = '58160'}
+			# 	abort('investigate')
+			# end
 			satisfied=DBConn.exec(@constraintPredicateQuery)
 			if satisfied.count() >0
 				uniq_branches = satisfied.to_a.uniq{|s| s['mutation_branches']}
@@ -243,6 +247,7 @@ class TupleMutation
 					1.upto(i) do |j|
 						nodes = []
 						nd = Hash.new()
+
 						nd['branch_name'] = "missing_branch#{i}"
 						nd['node_name'] = "missing_node#{i}"
 						nd['columns'] = "{#{excluded.map{|e| e['mutation_cols']}.join(',')}}"
@@ -417,7 +422,9 @@ class TupleMutation
 			mutation_columns = bn['cols'].to_a.map{|c| c.fullname}.join(',')
 			query = query + "INSERT INTO #{@mutation_tbl} select #{@renamedPKCol},'#{bn['branches']}' as mutation_branches,'#{bn['nodes']}' as mutation_nodes, '#{mutation_columns}' as mutation_cols ,#{insert_tup} ;"
 		end
-		# puts query
+		# if @pk.any?{|pk| pk['col'] = 'emp_no' and pk['val'] = '58160'}
+		# 	pp bn_pairs
+		# end
 		DBConn.exec(query)
 
 	end
@@ -445,7 +452,7 @@ class TupleMutation
 				# only need to find passed_node if it's on single branch
 				passed_nodes = ith_combination == 1 ? br.passed_nodes(@pkCond_strip_tbl_alias,@test_id,@type) : []
 				# pp passed_nodes
-				if passed_nodes.count() >0
+				if passed_nodes.count() > 0
 					node = passed_nodes[0]
 					# cols_strip_relalias = node.columns.map {|c| c.strip_relalias}
 					# colnames = node.columns {|c| c.colname }.join(',')
@@ -465,6 +472,7 @@ class TupleMutation
 							column_set = nd.columns.to_set
 							bn1['cols'] = column_set
 							@remaining_cols.delete(column_set)
+
 							bn_pairs << bn1
 						end
 					else
@@ -474,12 +482,12 @@ class TupleMutation
 						# @remaining_cols.delete(cols_strip_relalias.to_set)
 						# bn['cols'] = bn['cols'] + ( idx >0 ? "," : "") + "#{cols_strip_relalias.join(',')}"	
 						column_set = node.columns.to_set
-						@remaining_cols.deletecolumn_set
+						@remaining_cols.delete(column_set)
 						bn['cols']= column_set
 					end
 				end
 			end
-			bn_pairs << bn if bn['cols'] !=''
+			bn_pairs << bn if bn['cols'].count() > 0
 
 		end
 		bn_pairs
@@ -526,7 +534,7 @@ class TupleMutation
 			branch_node_cond=" branch_name = '#{nd['branch_name']}' and node_name = '#{nd['node_name']}'"
 			query ="UPDATE node_query_mapping"+
 			      " SET suspicious_score = suspicious_score -1 "+
-				  "where test_id = #{@test_id} and type='f' "+ 
+				  "where test_id = #{@test_id} and type='f' and suspicious_score >0"+ 
 				  "and #{branch_node_cond}"
 			# pp query
 			DBConn.exec(query)
@@ -536,7 +544,7 @@ class TupleMutation
 	def exnorate_all_nodes(branch = '')
 		query ="UPDATE node_query_mapping "+
 		      "SET suspicious_score = suspicious_score - 1 "+
-			  "where test_id = #{@test_id} and type = 'f' and branch_name not like 'missing%' and node_name not like 'missing%'"+
+			  "where test_id = #{@test_id} and type = 'f' and suspicious_score >0 and branch_name not like 'missing%' and node_name not like 'missing%'"+
 			  (branch =='' ? '' : " and branch_name = '#{branch}'")
 		# pp query
 		DBConn.exec(query)

@@ -59,9 +59,10 @@ def queryTest(script)
 		fqueryObj.score = localizeErr.getSuspiciouScore()
 		puts 'fquery score:'
 		pp fqueryObj.score
+		pp fqueryObj.score['totalScore']
 		duration = (endTime - beginTime).to_i
 		puts "duration: #{duration}"
-		update_test_result_tbl(fqueryObj.query,tqueryObj.query,m_u_tuple_count,duration,fqueryObj.score, idx)
+		update_test_result_tbl(fqueryObj.query,tqueryObj.query,m_u_tuple_count,duration,fqueryObj.score['totalScore'], idx)
 	end
 
 	# puts "begin fix"
@@ -92,13 +93,19 @@ def randomMutation(script)
 end
 
 def create_test_result_tbl()
-	query =  %Q(DROP TABLE if exists test_result; 
-	CREATE TABLE test_result 
-	(test_id int, fquery text, tquery text, m_u_tuple_count bigint, duration bigint, result text);)
+	query =  %Q(DROP TABLE if exists test_result;
+	CREATE TABLE test_result
+	(test_id int, fquery text, tquery text, m_u_tuple_count bigint, duration bigint, total_score bigint);)
+  	 # pp query
+    DBConn.exec(query)
+
+    query =  %Q(DROP TABLE if exists test_result_detail;
+	CREATE TABLE test_result_detail
+	(test_id int, branch_name varchar(30), node_name varchar(30), query text, columns text, score bigint);)
   	 # pp query
     DBConn.exec(query)
 end
-def update_test_result_tbl(fquery,tquery,m_u_tuple_count,duration,score,test_id)
+def update_test_result_tbl(fquery,tquery,m_u_tuple_count,duration,total_score,test_id)
 
 	fquery = fquery.gsub("'","''")
 	tquery = tquery.gsub("'","''")
@@ -108,9 +115,36 @@ def update_test_result_tbl(fquery,tquery,m_u_tuple_count,duration,score,test_id)
 				'"#{tquery}"',
 				#{m_u_tuple_count},
 				#{duration},
-				'#{score.to_s}'
+				#{total_score}
 			)
 	# puts query
     DBConn.exec(query)
+
+    query =  %Q(INSERT INTO test_result_detail
+				select #{test_id},
+				branch_name,
+				node_name,
+				query,
+				columns,
+				suspicious_score
+				from node_query_mapping
+				where type = 'f' and suspicious_score >0
+			)
+	# puts query
+    DBConn.exec(query)
+
+ 	query = "select #{test_id},
+				branch_name,
+				node_name,
+				query,
+				columns,
+				suspicious_score
+				from node_query_mapping
+				where type = 'f' and suspicious_score >0"
+    res = DBConn.exec(query)
+    puts 'result:'
+    res.each_row do |r|
+    	pp r
+    end
 end
 
