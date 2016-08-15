@@ -96,6 +96,10 @@ module QueryBuilder
     pk.map{|pk| (tbl_alias.empty? ? '' : "#{tbl_alias}.")+ pk['col']+' = '+ pk['val'].to_s.str_int_rep }.join(' AND ')
     #p pkcond
   end
+  def QueryBuilder.pkCondConstr_strip_tbl_alias(pk)
+    pk.map{|f| "#{f['col'].to_s.strip_relalias} = #{f['val'].to_s.str_int_rep}" }.join(' AND ')
+    #p pkcond
+  end
   def QueryBuilder.pkValConstr(pk)
     pk.map{|pk|  pk['val'].to_s.str_int_rep }.join(', ')
     #p pkcond
@@ -117,4 +121,4 @@ module QueryBuilder
     #p pkcond
   end
 
-end 	
+end

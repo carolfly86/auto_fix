@@ -19,7 +19,6 @@ class String
   end
 
   def typCategory
-   
     if self.is_number?
       typcategory = 'N'
     elsif self.is_bool?
@@ -31,6 +30,8 @@ class String
     end
     typcategory
   end
-
+  def strip_relalias
+    self.include?('.') ? self.split('.')[1].to_s : self
+  end
 end
 

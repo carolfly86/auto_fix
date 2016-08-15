@@ -1,4 +1,0 @@
-{
-  "query": "select q.id, choiceid, a.respondentid, a.surveyid,a.context, label, a.type from questions q join answers a on q.id = a.questionid and q.surveyid = a.surveyid JOIN answersets a2 on a.surveyid = a2.surveyid and a.respondentid = a2.respondentid and a.context = a2.context and a.etl_time=a2.etl_time where a.surveyid = 8399 and type = 'PICK';",
-  "pkList": "id,choiceid,respondentid,surveyid,context"
-}

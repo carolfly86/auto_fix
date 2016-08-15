@@ -178,27 +178,27 @@ module ReverseParseTree
   #   str.to_s.to_i.to_s == str.to_s
   # end
 
-  def ReverseParseTree.whereCondSplit(wherePT)
-    result = []
-    #pp wherePT
-    logicOpr = wherePT.keys[0].to_s
-    #p logicOpr
-    if ( logicOpr == 'AEXPR AND' or logicOpr == 'AEXPR OR')
-      result += whereCondSplit(wherePT[logicOpr]['lexpr'])
-      result += whereCondSplit(wherePT[logicOpr]['rexpr'])
-    # or operator are tested as a whole 
-    else 
-      h =  Hash.new
-      h['query'] = whereClauseConst(wherePT)
-      pp wherePT
-      h['location'] = wherePT[logicOpr]['location']
-      h['suspicious_score'] = 0
-      h['columns'] = columnsInPredicate(wherePT)
-      result << h
-    end
-    #pp result.to_a
-    result
-  end
+  # def ReverseParseTree.whereCondSplit(wherePT)
+  #   result = []
+  #   #pp wherePT
+  #   logicOpr = wherePT.keys[0].to_s
+  #   #p logicOpr
+  #   if ( logicOpr == 'AEXPR AND' or logicOpr == 'AEXPR OR')
+  #     result += whereCondSplit(wherePT[logicOpr]['lexpr'])
+  #     result += whereCondSplit(wherePT[logicOpr]['rexpr'])
+  #   # or operator are tested as a whole 
+  #   else 
+  #     h =  Hash.new
+  #     h['query'] = whereClauseConst(wherePT)
+  #     pp wherePT
+  #     h['location'] = wherePT[logicOpr]['location']
+  #     h['suspicious_score'] = 0
+  #     h['columns'] = columnsInPredicate(wherePT)
+  #     result << h
+  #   end
+  #   #pp result.to_a
+  #   result
+  # end
   def ReverseParseTree.columnsInPredicate(expr)
     columns = []
     #pp wherePT
@@ -207,11 +207,11 @@ module ReverseParseTree
     if ( logicOpr == 'AEXPR')
       columns += columnsInPredicate(expr[logicOpr]['lexpr'])
       columns += columnsInPredicate(expr[logicOpr]['rexpr'])
-    # or operator are tested as a whole 
-    else 
+    # or operator are tested as a whole
+    else
       unless expr['COLUMNREF'].nil?
-        col = expr['COLUMNREF']['fields'].join('.')
-        columns << col
+        # col = expr['COLUMNREF']['fields'].join('.')
+        columns << expr['COLUMNREF']['fields']
       end
     end
     # pp columns

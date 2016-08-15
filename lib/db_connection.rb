@@ -12,7 +12,7 @@ module DBConn
 
   def DBConn.tblCreation(tblName, pkList, query)
     q = QueryBuilder.create_tbl(tblName, pkList, query)
-    puts q
+    # puts q
     exec(q)
   end
 
@@ -58,7 +58,7 @@ module DBConn
             field.relalias = relAlias.nil? ? relName : relAlias['ALIAS']['aliasname']
             field.datatype = c['data_type']
             field.typcategory = c['typcategory']
-
+            field.colalias = c['column_name']
             fieldsList << field
           end
       end 

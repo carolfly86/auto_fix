@@ -13,6 +13,7 @@ require_relative 'db_connection'
 class LozalizeError
   # attr_accessor :fPS
   #def initialize(fQuery, tQuery, parseTree)
+  attr_reader :missing_tuple_count, :unwanted_tuple_count
   def initialize(fQueryObj,tQueryObj, is_new = true)
     # @fQuery=fqueryObj['query']
     # @tQuery=tqueryObj['query']
@@ -25,7 +26,6 @@ class LozalizeError
 
     @fPS = fQueryObj.parseTree
     @tPS=tQueryObj.parseTree
-
     @is_new = is_new
     @test_id = @is_new ? 0 : generate_new_testid()
 
@@ -35,7 +35,7 @@ class LozalizeError
     res.each do |r|
       @pkList << r['attname']
     end
-
+    # pp "@pkList: #{@pkList}"
     #pp @ps
     @pkJoin = ''
     pkSelectArry =[]
@@ -54,13 +54,13 @@ class LozalizeError
     root =Tree::TreeNode.new('root', '')
     @predicateTree = PredicateTree.new('f',@is_new, @test_id)
     # pp @wherePT
-    @predicateTree.build_full_pdtree(@wherePT,root)
+    @predicateTree.build_full_pdtree(@fromPT[0], @wherePT,root)
     @pdtree = @predicateTree.pdtree
     @pdtree.print_tree
     pp 'branches'
     pp @predicateTree.branches
-    pp 'nodes'
-    pp @predicateTree.nodes
+    # pp 'nodes'
+    # pp @predicateTree.nodes
 
     # @predicateTree.node_query_mapping_insert()
 
@@ -68,6 +68,8 @@ class LozalizeError
     @fromCondStr = ReverseParseTree.fromClauseConstr(@fromPT)
     @whereStr = ReverseParseTree.whereClauseConst(@wherePT)
 
+    @missing_tuple_count = 0
+    @unwanted_tuple_count = 0
     # create_t_f_union_table
     # create_t_f_intersect_table
     # create_t_f_all_table
@@ -198,7 +200,6 @@ class LozalizeError
 
       rarg = join['rarg']
       rLoc = JsonPath.on(rarg, '$..location')[0]
-      
 
       # pp join
       # join null testing is not needed for inner join, unwanted dataset
@@ -207,7 +208,7 @@ class LozalizeError
         lNull = joinArgNull(larg)
         lRst = joinNullTest(lNull,pkQuery, fromCondStr)
         joinErrList << joinNullRst(lRst,joinType,'L', lLoc)
-         #Right Null      
+         #Right Null
         rNull = joinArgNull(rarg)
         rRst = joinNullTest(rNull,pkQuery, fromCondStr)
         joinErrList << joinNullRst(rRst,joinType, 'R', rLoc)
@@ -265,9 +266,9 @@ class LozalizeError
     end
     result
   end
-  
+
   def joinNullRst(rst,jointype,joinSide, location)
-    # p rst 
+    # p rst
     if rst == "IS SUBSET"
       joinTypeDesc = ReverseParseTree.joinTypeConvert(jointype.to_s)
       #p "Error in Join type #{joinTypeDesc} of #{joinSide}"
@@ -295,39 +296,40 @@ class LozalizeError
     query,res = find_unwanted_tuples()
     #res = DBConn.exec(query)
     unWantedPK = pkArryGen(res)
-
     tnTableCreation('tuple_node_test_result') if @is_new
 
-    if unWantedPK.count()>0
-      p 'Unwanted Pk'
+    if @unwanted_tuple_count >0
+      p "Unwanted Pk count #{unWantedPK.count()}"
       # create unwanted_tuple_branch table
       whereErrList = whereCondTest(unWantedPK,'U')
       joinErrList = jointypeErr(query,'U')
-    end 
+    end
 
 
     # Missing rows
     query,res = find_missing_tuples()
 
     missinPK = pkArryGen(res)
+    @missing_tuple_count = missinPK.count()
     # Join type test
     # Join condition test
     # where clause test
-    # if missinPK.count()>0
-    #   p 'Missing PK'
+    if @missing_tuple_count>0
+      p "Missing PK count #{missinPK.count()}"
 
-    #   whereErrList = whereCondTest(missinPK,'M')
-    #   joinErrList = jointypeErr(query,'M')
-    # end
+      whereErrList = whereCondTest(missinPK,'M')
+      joinErrList = jointypeErr(query,'M')
+    end
 
-    #p joinErrList.to_a 
+    #p joinErrList.to_a
     #p whereErrList.to_a
     # predicateArry = @predicateTree.predicateArrayGen(@pdtree)
     # pp predicateArry
     suspicious_score_upd(@predicateTree.branches)
-    true_query_PT_construct()
-    tuple_mutation_test(missinPK,'M')
-    tuple_mutation_test(unWantedPK,'U')
+    # exnorate algorithm
+    # true_query_PT_construct()
+    # tuple_mutation_test(missinPK,'M')
+    # tuple_mutation_test(unWantedPK,'U')
 
     # remove constraint_nodes in node_query_mapping
     query = "delete from node_query_mapping where test_id = #{@test_id} and type = 't'"
@@ -340,11 +342,11 @@ class LozalizeError
   end
   def true_query_PT_construct()
     tWherePT= @tPS['SELECT']['whereClause']
-    tPredicateTree = PredicateTree.new('t',false, @test_id)
+    @tPredicateTree = PredicateTree.new('t',false, @test_id)
     root =Tree::TreeNode.new('root', '')
-    tPredicateTree.build_full_pdtree(tWherePT,root)
+    @tPredicateTree.build_full_pdtree(@fromPT[0],tWherePT,root)
     # tPredicateTree.node_query_mapping_insert()
-
+    # @t_pdtree = @tPredicateTree.pdtree
   end
   def tuple_mutation_test(pkArry, type)
 
@@ -353,29 +355,32 @@ class LozalizeError
     pkArry.each do |pk|
       # pp pk
       # pp type
-      pkCond=QueryBuilder.pkCondConstr(pk)
+
+      pkCond=QueryBuilder.pkCondConstr_strip_tbl_alias(pk)
+      # only need exonerating if multiple nodes in a branch are suspicious
+      branchQuery="select distinct branch_name from tuple_node_test_result where #{pkCond};" 
+      res = DBConn.exec(branchQuery)
+
       if type =='U'
-        # only need exonerating if multiple nodes in a branch are suspicious
-        branchQuery="select distinct branch_name from tuple_node_test_result where #{pkCond};" 
-        pp branchQuery
-        res = DBConn.exec(branchQuery)
+        # pp branchQuery
         res.each do |branch_name|
           # distinct_query = "select distinct node_name from node_query_mapping where branch_name = '#{branch_name['branch_name']}'"
           # distinct_nodes =DBConn.exec(distinct_query)
           # if distinct_nodes.count()>1
             branch =[]
             branch << @predicateTree.branches.find{ |br| br.name == branch_name['branch_name'] }
-            pp branch
-            tupleMutation = TupleMutation.new(@test_id,pk,type,branch,@fQueryObj,@tQueryObj)
+            # pp branch
+            tupleMutation = TupleMutation.new(@test_id,pk,type,branch,@fQueryObj,@tQueryObj,@tPredicateTree)
             tupleMutation.unwanted_to_satisfied()
           # end
         end
       elsif type == 'M'
-         # only need exonerating if multiple branches are suspicious
-          branchQuery="select distinct branch_name from tuple_node_test_result where #{pkCond};"
-          res = DBConn.exec(branchQuery)
+         # # only need exonerating if multiple branches are suspicious
+         #  branchQuery="select distinct branch_name from tuple_node_test_result where #{pkCond};"
+         #  # pp branchQuery
+         #  res = DBConn.exec(branchQuery)
           if res.count()>1
-            tupleMutation = TupleMutation.new(@test_id,pk,type,@predicateTree.branches,@fQueryObj,@tQueryObj) 
+            tupleMutation = TupleMutation.new(@test_id,pk,type,@predicateTree.branches,@fQueryObj,@tQueryObj,@tPredicateTree) 
             tupleMutation.missing_to_excluded
           end
       end
@@ -406,8 +411,10 @@ class LozalizeError
       @pkList.each do |c|
         h =  Hash.new
         #col = ReverseParseTree.find_col_by_name(@ps['SELECT']['targetList'], c)['fullname']
-        h['col'] = ReverseParseTree.find_col_by_name(@fPS['SELECT']['targetList'], c)['col']
+        col = ReverseParseTree.find_col_by_name(@fPS['SELECT']['targetList'], c)
+        h['col'] = col['col']
         h['val'] = r[c]
+        h['alias'] = col['alias']
         pk.push(h)
       end
       pkArry.push(pk)
@@ -499,7 +506,7 @@ class LozalizeError
               # end
             end
           end
-        end 
+        end
       end
     end
   end
@@ -509,19 +516,27 @@ class LozalizeError
     pkNull = @pkSelect.gsub(',',' IS NULL AND ')
     # Unwanted rows
     query = 'SELECT '+
-            ( count_only ?  'count()' : @pkSelect )+
+            ( count_only ?  'count() as count' : @pkSelect )+
             " FROM #{@fTable} f LEFT JOIN #{@tTable} t ON #{@pkJoin} where #{pkNull.gsub('f.','t.')} IS NULL"
     res = DBConn.exec(query)
+    @unwanted_tuple_count = count_only ? res[0]['count'].to_i : res.count()
+
+    # puts 'unwanted rows query'
+    # puts query
     return query,res
   end
   def find_missing_tuples(count_only = false)
     pkNull = @pkSelect.gsub(',',' IS NULL AND ')
     # Unwanted rows
     query = 'SELECT '+
-             ( count_only ?  'count()': @pkSelect.gsub('f.','t.'))+
+             ( count_only ?  'count() as count': @pkSelect.gsub('f.','t.'))+
              " FROM #{@tTable} t LEFT JOIN #{@fTable} f ON #{@pkJoin} where #{pkNull} IS NULL"
     res = DBConn.exec(query)
-    puts query
+    @unwanted_tuple_count = count_only ? res[0]['count'].to_i : res.count()
+
+    # puts 'missing rows query'
+    # puts query
+
     return query, res
   end
 

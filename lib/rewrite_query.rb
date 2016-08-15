@@ -29,7 +29,6 @@ module RewriteQuery
     colList.group_by{|f| f.colname}.each do |key, val|
       if val.size >1
         val.each do |col|
-          pp 
           col.colalias = col.relname.to_s.empty? ? "#{col.relalias}_#{col.colname}" : "#{col.relname}_#{col.colname}"
         end
       else
@@ -52,16 +51,15 @@ module RewriteQuery
     #  :replace_expr_with_colname,
     #  :replace_expr_with_colalias,
     #  :replace_expr_with_fullname
-    c = ['colname','colalias','fullname','expr']
+    c = ['colname','colalias','fullname','expr','renamed_colname']
     c.product(c).delete_if{|c| c[0]==c[1]}.each do |type|
       define_method("replace_#{type[0]}_with_#{type[1]}") do |query, col|
           eval("col.#{type[0]}.nil? ? query : col.#{type[1]}.nil? ? query : query.gsub(col.#{type[0]},col.#{type[1]})")
       end
     end
-  end 
-  # def RewriteQuery.replace_fullname_with_expr(query,col)
-  #   query.gsub(col.fullname,col.expr)
-  # end
+  end
+
+
   # def RewriteQuery.replace_fullname_with_colalias(query,col)
   #   query = query.gsub(col.fullname,col.colalias) unless col.colalias.to_s.empty?
   #   query

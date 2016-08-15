@@ -23,6 +23,7 @@ class QueryObj
       @query=options.fetch(:query)
       @pkList=options.fetch(:pkList)
     end
+    # pp @query
     @parseTree = options.fetch(:parseTree,PgQuery.parse(@query).parsetree[0])
     DBConn.tblCreation(@table, @pkList, @query)
 

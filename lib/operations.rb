@@ -46,7 +46,7 @@ def queryTest(script)
 	# t_options = {:script=> 'true', :table =>'t_result' }
 	# tqueryObj = QueryObj.new(t_options)
 	# #
-	f_options_list.each do |f_options|
+	f_options_list.each_with_index do |f_options,idx|
 		puts "begin test"
 		beginTime = Time.now
 		fqueryObj = QueryObj.new(f_options)
@@ -55,12 +55,13 @@ def queryTest(script)
 		selectionErrList = localizeErr.selecionErr()
 		puts 'test end'
 		endTime = Time.now
+		m_u_tuple_count = localizeErr.missing_tuple_count + localizeErr.unwanted_tuple_count
 		fqueryObj.score = localizeErr.getSuspiciouScore()
 		puts 'fquery score:'
 		pp fqueryObj.score
 		duration = (endTime - beginTime).to_i
 		puts "duration: #{duration}"
-		update_test_result_tbl(fqueryObj.query,tqueryObj.query,duration,fqueryObj.score)
+		update_test_result_tbl(fqueryObj.query,tqueryObj.query,m_u_tuple_count,duration,fqueryObj.score, idx)
 	end
 
 	# puts "begin fix"
@@ -93,19 +94,19 @@ end
 def create_test_result_tbl()
 	query =  %Q(DROP TABLE if exists test_result; 
 	CREATE TABLE test_result 
-	(test_id int, fquery text, tquery text, duration bigint, result text);)
+	(test_id int, fquery text, tquery text, m_u_tuple_count bigint, duration bigint, result text);)
   	 # pp query
     DBConn.exec(query)
 end
-def update_test_result_tbl(fquery,tquery,duration,score)
+def update_test_result_tbl(fquery,tquery,m_u_tuple_count,duration,score,test_id)
 
 	fquery = fquery.gsub("'","''")
 	tquery = tquery.gsub("'","''")
-
 	query =  %Q(INSERT INTO test_result
-				select 0,
+				select #{test_id},
 				'"#{fquery}"',
 				'"#{tquery}"',
+				#{m_u_tuple_count},
 				#{duration},
 				'#{score.to_s}'
 			)

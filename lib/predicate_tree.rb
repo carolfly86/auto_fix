@@ -5,25 +5,28 @@ class PredicateTree
   # def initialize(support,behavior)
   # end
   # attr_accessor :count, :content
-  attr_reader :node_count, :pdtree, :branches, :branch_count, :nodes
+  attr_reader :node_count, :pdtree, :branches, :branch_count, :nodes, :all_columns
   def initialize(type,is_new, test_id)
     @node_count = 0
     @branch_count=0
     #@wherePT=wherePT
     @type=type
-    
+
     # @rootNode=Tree::TreeNode.new('root', '')
     @nqTblName = 'node_query_mapping'
     node_query_mapping_create() if is_new
     @test_id = test_id
     @branches = []
     @nodes = []
+    @all_columns =[]
     #pdtree_construct(wherePT, @pdtree )
     # curNode = Tree::TreeNode.new(nodeName, '')    
   end
-  def build_full_pdtree(wherePT,root)
+  def build_full_pdtree(fromPT,wherePT,root)
+    # relNames = JsonPath.on(fromPT.to_json, '$..RANGEVAR')
+    # pp relNames
     # root.print_tree
-    @pdtree = pdtree_construct(wherePT,root,0)
+    @pdtree = pdtree_construct(fromPT,wherePT,root,0)
     if @pdtree.node_height == 0
       root<<@pdtree
       @pdtree = root
@@ -38,7 +41,7 @@ class PredicateTree
 
     node_query_mapping_insert()
   end
-  def pdtree_construct(wherePT,curNode,depth = 0)
+  def pdtree_construct(fromPT,wherePT,curNode,depth = 0)
     logicOpr = wherePT.keys[0].to_s
     lexpr = wherePT[logicOpr]['lexpr']
     rexpr = wherePT[logicOpr]['rexpr']
@@ -51,8 +54,8 @@ class PredicateTree
       # pp lexpr
       # pp 'rexpr'
       # pp rexpr
-      lexprNode = pdtree_construct(lexpr,curNode,depth )
-      rexprNode = pdtree_construct(rexpr,curNode,depth)
+      lexprNode = pdtree_construct(fromPT,lexpr,curNode,depth )
+      rexprNode = pdtree_construct(fromPT,rexpr,curNode,depth)
       # p 'c'
       # curNode.print_tree
       # p 'l'
@@ -106,8 +109,8 @@ class PredicateTree
       # lexprNode.print_tree unless lexprNode.nil?
       # p 'r'
       # rexprNode.print_tree unless rexprNode.nil?
-      lexprNode = pdtree_construct(lexpr,curNode,depth) 
-      rexprNode = pdtree_construct(rexpr,curNode,depth)
+      lexprNode = pdtree_construct(fromPT,lexpr,curNode,depth) 
+      rexprNode = pdtree_construct(fromPT,rexpr,curNode,depth)
       # puts 'after'
       # p 'c'
       # curNode.print_tree
@@ -142,7 +145,18 @@ class PredicateTree
       h['query'] = ReverseParseTree.whereClauseConst(wherePT)
       # pp wherePT
       h['location'] = wherePT[logicOpr]['location']
-      h['columns']=ReverseParseTree.columnsInPredicate(wherePT)
+      h['columns'] = []
+      cols = ReverseParseTree.columnsInPredicate(wherePT)
+      # convert string to Column object
+      cols.each do |col|
+        column=Column.new
+        column.colname = col.count()>1 ? col[1] : col[0]
+        column.relalias = col.count()>1 ? col[0] : nil
+        column.updateRelname(fromPT)
+        h['columns'] << column
+        @all_columns << column unless @all_columns.include?(column)
+        # end
+      end
       h['suspicious_score'] = 0
       # pp h
       curNode=Tree::TreeNode.new(nodeName, h)
@@ -180,13 +194,23 @@ class PredicateTree
     ph << subtree
     return ph
   end
-
+  def get_all_columns()
+    columns =[]
+    @branches.each do |br|
+      br.nodes.each do |nd|
+        pp 'get_all_columns'
+        pp nd
+        columns+nd.columns
+      end
+    end
+    columns
+  end
   # def node_query_mapping_insert( nodeName,query,loc,columns, suspicious_score)
   def node_query_mapping_insert()
     self.branches.each do |br|
       br.nodes.each do |nd|
         nodeName=nd.name
-        columnsArray=nd.columns.map{|c| "'"+c+"'"}.join(',')
+        columnsArray=nd.columns.map{|c| "'"+(c.relalias.nil? ? '' : c.relalias+'.')+c.colname+"'"}.join(',')
         query = "INSERT INTO #{@nqTblName} values (#{@test_id} ,'#{br.name}','#{nd.name}', '#{nd.query.gsub(/'/,'\'\'')}',#{nd.location}, ARRAY[#{columnsArray}], #{nd.suspicious_score} , '#{@type}' )"
         DBConn.exec(query)
       end
