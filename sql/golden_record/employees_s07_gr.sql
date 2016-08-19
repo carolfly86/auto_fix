@@ -20,12 +20,12 @@ SET default_with_oids = false;
 --
 
 CREATE TABLE golden_record (
-    emp_no integer,
-    birth_date date,
-    first_name character varying(14),
-    last_name character varying(16),
-    gender gender_enum,
-    hire_date date,
+    employees_emp_no integer,
+    employees_birth_date date,
+    employees_first_name character varying(14),
+    employees_last_name character varying(16),
+    employees_gender gender_enum,
+    employees_hire_date date,
     type character varying(30),
     branch character varying(30)
 );
@@ -37,12 +37,11 @@ ALTER TABLE golden_record OWNER TO yguo;
 -- Data for Name: golden_record; Type: TABLE DATA; Schema: public; Owner: yguo
 --
 
-COPY golden_record (emp_no, birth_date, first_name, last_name, gender, hire_date, type, branch) FROM stdin;
+COPY golden_record (employees_emp_no, employees_birth_date, employees_first_name, employees_last_name, employees_gender, employees_hire_date, type, branch) FROM stdin;
+10001	1953-09-02	Georgi	Facello	F	1986-06-26	excluded	
 12523	1954-09-26	Tonia	Casley	M	1989-03-03	satisfied	PH0
-13000	1953-09-02	Georgi	Facello	F	1986-06-26	excluded	
-11234	1961-06-17	Tooru	Albert	F	1994-09-21	satisfied	PH1
-16093	1952-02-03	Luise	Vingron	F	1990-08-21	satisfied	PH2
-10001	1953-09-02	Georgi	Facello	M	1986-06-26	satisfied	PH3
+11234	1961-06-17	Tooru	Vingron	F	1990-08-21	satisfied	PH1
+16093	1952-02-03	Luise	Albert	F	1992-02-28	satisfied	PH2
 \.
 
 

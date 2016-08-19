@@ -1,25 +1,4 @@
 def queryTest(script)
-	# fqueryJson = JSON.parse(File.read("sql/#{fqueryScript}.json"))
-	# tqueryJson = JSON.parse(File.read('sql/true.json'))
-
-	# fQuery = fqueryJson['query']
-	# f_pkList = fqueryJson['pkList']
-
-	# fTable = 'f_result'
-	# fqueryJson['table'] = fTable
-	# DBConn.tblCreation(fTable, f_pkList, fQuery)
-
-	# tQuery = tqueryJson['query']
-	# t_pkList = tqueryJson['pkList']
-	# tTable = 't_result'
-	# tqueryJson['table'] = tTable
-	# DBConn.tblCreation(tTable, t_pkList, tQuery)
-
-
-	# fqueryJson['parseTree']= PgQuery.parse(fQuery).parsetree[0]
-	# tqueryJson['parseTree']=PgQuery.parse(tQuery).parsetree[0]
-
-	# pp fqueryJson['parseTree']
 	query_json = JSON.parse(File.read("sql/#{script}.json"))
 	create_test_result_tbl()
 	f_options_list = []
@@ -30,7 +9,7 @@ def queryTest(script)
 				query=opt['query']
 				pk_list=opt['pkList']
 				relevent = opt['relevent']
-				pp relevent
+				# pp relevent
 				f_options = {:query=> query, :pkList =>pk_list,  :table =>'f_result', :relevent =>relevent }
 				f_options_list<< f_options
 			end
@@ -48,11 +27,17 @@ def queryTest(script)
 	# t_options = {:script=> 'true', :table =>'t_result' }
 	# tqueryObj = QueryObj.new(t_options)
 	# #
+	tqueryObj = QueryObj.new(t_options)
+
+	create_golden_record(tqueryObj)
+	puts "Please verify golden record: verified (Y), not verified(N)"
+	verified = gets.chomp
+	abort('not verified')unless verified == 'Y'
+
 	f_options_list.each_with_index do |f_options,idx|
 		puts "begin test"
 		beginTime = Time.now
 		fqueryObj = QueryObj.new(f_options)
-		tqueryObj = QueryObj.new(t_options)
 		localizeErr = LozalizeError.new(fqueryObj,tqueryObj)
 		selectionErrList = localizeErr.selecionErr()
 		puts 'test end'
@@ -93,6 +78,56 @@ def randomMutation(script)
 	newQ = fqueryObj. generate_neighbor_program(127,0)
 
 end
+def create_golden_record(tQueryObj)
+	# tQueryObj.parseTree
+	parseTree = tQueryObj.parseTree
+    wherePT= tQueryObj.parseTree['SELECT']['whereClause']
+    fromPT=tQueryObj.parseTree['SELECT']['fromClause']
+    col_list = DBConn.getAllRelFieldList(fromPT)
+    new_target_list = col_list.map do |col|
+    					"#{col.fullname} as #{col.renamed_colname}"
+    				end.join(', ')
+
+    tPredicateTree = PredicateTree.new('t',true, 0)
+    root =Tree::TreeNode.new('root', '')
+    tPredicateTree.build_full_pdtree(fromPT[0],wherePT,root)
+    pdtree = tPredicateTree.pdtree
+    # pdtree.print_tree
+
+
+    all_queries = []
+    br_queries =[]
+    tPredicateTree.branches.each do |br|
+    	br_query = ''
+    	brq = Hash.new()
+    	br.nodes.each_with_index do |nd,idx|
+    		all_queries << nd.query unless all_queries.include?(nd.query)
+    		br_query = br_query+ ( idx >0 ? ' AND ' : '') + nd.query
+    	end
+    	brq[br.name] = br_query
+    	br_queries << brq
+	end
+
+	excluded_predicates = all_queries.map{|query| "NOT (#{query})"}.join(' AND ')
+	excluded_target_list = "#{new_target_list} , 'excluded'::varchar(30) as type, ''::varchar(30) as branch"
+	excluded_query = ReverseParseTree.reverseAndreplace(parseTree, excluded_target_list, excluded_predicates)
+	excluded_query = "#{excluded_query} limit 1"
+	# pp excluded_query
+
+	DBConn.tblCreation('golden_record', '', excluded_query)
+
+	br_queries.each do |q|
+		q.each_pair do |key,val|
+			satisfied_target_list = "#{new_target_list} , 'satisfied'::varchar(30) as type, '#{key}'::varchar(30) as branch"
+			satisfied_query = ReverseParseTree.reverseAndreplace(parseTree, satisfied_target_list, val)
+			satisfied_query = "INSERT INTO golden_record #{satisfied_query} limit 1"
+			# pp satisfied_query
+			DBConn.exec(satisfied_query)
+		end
+	end
+
+end
+
 
 def create_test_result_tbl()
 	query =  %Q(DROP TABLE if exists test_result;

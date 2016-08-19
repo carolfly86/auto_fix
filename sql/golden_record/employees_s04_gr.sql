@@ -16,16 +16,14 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
--- Name: golden_record2; Type: TABLE; Schema: public; Owner: yguo; Tablespace: 
+-- Name: golden_record; Type: TABLE; Schema: public; Owner: yguo; Tablespace: 
 --
 
 CREATE TABLE golden_record (
-    emp_no integer,
-    birth_date date,
-    first_name character varying(14),
-    last_name character varying(16),
-    gender gender_enum,
-    hire_date date,
+    salaries_emp_no integer,
+    salaries_salary integer,
+    salaries_from_date date,
+    salaries_to_date date,
     type character varying(30),
     branch character varying(30)
 );
@@ -37,11 +35,11 @@ ALTER TABLE golden_record OWNER TO yguo;
 -- Data for Name: golden_record2; Type: TABLE DATA; Schema: public; Owner: yguo
 --
 
-COPY golden_record (emp_no, birth_date, first_name, last_name, gender, hire_date, type, branch) FROM stdin;
-10001	1953-09-02	Georgi	Facello	F	1986-06-26	excluded	
-12523	1954-09-26	Tonia	Casley	M	1989-03-03	satisfied	PH0
-11234	1961-06-17	Tooru	Vingron	F	1990-08-21	satisfied	PH1
-16093	1952-02-03	Luise	Tramer	F	1992-02-28	satisfied	PH2
+COPY golden_record (salaries_emp_no, salaries_salary, salaries_from_date, salaries_to_date, type, branch) FROM stdin;
+58042	94701	1990-01-06	1990-01-06	excluded	
+110000	50000	1994-04-01	1997-04-01	satisfied	PH0
+58335	63561	1993-04-01	1996-04-01	satisfied	PH1
+583364	47889	1990-01-06	1993-04-01	satisfied	PH2
 \.
 
 

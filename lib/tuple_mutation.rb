@@ -19,11 +19,8 @@ class TupleMutation
 		@mutation_tbl='mutation_tuple'
 
 		@fParseTree = fQueryObj.parseTree
-		# @f_result_tbl=fQueryObj.table
 		f_fromPT = @fParseTree['SELECT']['fromClause']
 		@constraintPredicateQuery = constraintPredicateQuery
-		# tWherePT = tQueryObj.parseTree['SELECT']['whereClause']
-		# t_fromPT = tQueryObj.parseTree['SELECT']['fromClause']
 
 		@pkCond=QueryBuilder.pkCondConstr(@pk)
 		@pkCol = QueryBuilder.pkColConstr(@pk)
@@ -310,33 +307,6 @@ class TupleMutation
 		res = DBConn.exec(@constraintPredicateQuery)
 	end
 
-
-	# excluded pk is in the table
-	# but not in t_restul or f_result
-	# def get_exludedPKList()
-	# 	pkCol=@pk.map{|c| "#{c['col']}"}.join(',')
-	# 	whereCond='1=1'
-	# 	allPKQuery =  ReverseParseTree.reverseAndreplace(@fParseTree, pkCol,whereCond)
-	# 	allPKQuery = "WITH allPK as (#{allPKQuery})"
-
-	# 	pkCoalesce = @pk.map{|c| "COALESCE(f.#{c['col']},t.#{c['col']}) as #{c['col']}"}.join(',')
-	# 	resultPKQuery = "resultPK as (SELECT #{pkCoalesce} FROM #{@f_result_tbl} f FULL JOIN t_result t on #{@pkJoin})"
-	# 	pkCol=@pk.map{|c| "a.#{c['col']}"}.join(',')
-	# 	pkJoin = @pkJoin.gsub('f.','a.').gsub('t.','r.')
-	# 	pkCond = @pk.map{|c| "r.#{c['col']} is null"}.join(' and ')
-	# 	query = %Q(#{allPKQuery}, 
-	# 			#{resultPKQuery}
-	# 			SELECT #{pkCol} from
-	# 			allPK a LEFT JOIN resultPK r 
-	# 			ON #{pkJoin}
-	# 			where #{pkCond}
-	# 			)
-	# 	DBConn.exec(query)
-	# end
-
-	# excluded pk is in the table
-	# but not in t_restul or f_result
-	# this function return the first excluded pk with the different value in predicateColumn
 	def get_first_exludedPK()
 
 		allColumns = @allColumnList.map do |field|
@@ -388,35 +358,7 @@ class TupleMutation
 		res=DBConn.exec(query)
 		return res[0]['count'].to_i>0
 	end
-	# def find_target_tuple(whereClauseReplacement)
-	# 	targetListReplacement ="#{@pkCol},#{@columns}"
-	# 	query =  ReverseParseTree.reverseAndreplace(@fParseTree, targetListReplacement,whereClauseReplacement)
-	# 	# puts 'find_target_tuple'
-	# 	# puts query
-	# 	DBConn.exec(query)
-	# end
-	# def rewrite_predicate_query(query, column_list)
-	# 	# pp column_list
-	# 	column_list.each do |col|
-	# 		# remove table alias
-	# 		pp col
-	# 		# query=RewriteQuery.replace_fullname_with_colname(query,col)
-	# 		# pp'after remove table alias'
-	# 		# pp query
-	# 		# replace colname with colalias
-	# 		# query=RewriteQuery.replace_colname_with_colalias(query,col)
-	# 		query=RewriteQuery.replace_fullname_with_renamed_colname(query,col)
-	# 		pp'after remove table alias'
-	# 		pp query
 
-	# 	end
-	# 	# puts 'rewrite_predicate_query'
-	# 	# pp query
-	# 	query="SELECT mutation_branches,mutation_nodes, mutation_cols FROM #{@mutation_tbl} WHERE mutation_branches <> 'none' and mutation_cols <>'none' and "+query
-
-	# 	# query="SELECT count(1) FROM #{@mutation_tbl} WHERE "+query
-
-	# end
 	def mutationTbl_create()
 		# colCombination = @allColumnList.combination(ith_combination).to_a.map{|c| c.map{|col| col.colname}.join(',')}.map{|c| "'#{c}'"}.join(',')
 

@@ -20,10 +20,10 @@ SET default_with_oids = false;
 --
 
 CREATE TABLE golden_record (
-    emp_no integer,
-    salary integer,
-    from_date date,
-    to_date date,
+    salaries_emp_no integer,
+    salaries_salary integer,
+    salaries_from_date date,
+    salaries_to_date date,
     type character varying(30),
     branch character varying(30)
 );
@@ -32,10 +32,10 @@ CREATE TABLE golden_record (
 ALTER TABLE golden_record OWNER TO yguo;
 
 --
--- Data for Name: golden_record; Type: TABLE DATA; Schema: public; Owner: yguo
+-- Data for Name: golden_record2; Type: TABLE DATA; Schema: public; Owner: yguo
 --
 
-COPY golden_record (emp_no, salary, from_date, to_date, type, branch) FROM stdin;
+COPY golden_record (salaries_emp_no, salaries_salary, salaries_from_date, salaries_to_date, type, branch) FROM stdin;
 58042	45701	1990-01-06	1999-01-06	excluded	
 58335	63561	1994-04-01	1996-04-01	satisfied	PH1
 110000	100000	1990-04-01	1997-04-01	satisfied	PH0

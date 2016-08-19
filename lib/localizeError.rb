@@ -332,8 +332,6 @@ class LozalizeError
     # exnorate algorithm
     true_query_PT_construct()
     constraint_query = constraint_predicate_construct()
-    # pp constraint_query
-    # abort('test')
     tuple_mutation_test(missinPK,'M',constraint_query)
     tuple_mutation_test(unWantedPK,'U',constraint_query)
 
@@ -351,8 +349,6 @@ class LozalizeError
     @tPredicateTree = PredicateTree.new('t',false, @test_id)
     root =Tree::TreeNode.new('root', '')
     @tPredicateTree.build_full_pdtree(@fromPT[0],@tWherePT,root)
-    # tPredicateTree.node_query_mapping_insert()
-    # @t_pdtree = @tPredicateTree.pdtree
   end
   def constraint_predicate_construct()
 

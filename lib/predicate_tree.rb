@@ -198,8 +198,8 @@ class PredicateTree
     columns =[]
     @branches.each do |br|
       br.nodes.each do |nd|
-        pp 'get_all_columns'
-        pp nd
+        # pp 'get_all_columns'
+        # pp nd
         columns+nd.columns
       end
     end
