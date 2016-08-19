@@ -294,8 +294,11 @@ class LozalizeError
 
     # # Unwanted rows
     query,res = find_unwanted_tuples()
+
     #res = DBConn.exec(query)
+
     unWantedPK = pkArryGen(res)
+    # @unwanted_tuple_count = unWantedPK.count()
     tnTableCreation('tuple_node_test_result') if @is_new
 
     if @unwanted_tuple_count >0
@@ -310,7 +313,7 @@ class LozalizeError
     query,res = find_missing_tuples()
 
     missinPK = pkArryGen(res)
-    @missing_tuple_count = missinPK.count()
+    # @missing_tuple_count = missinPK.count()
     # Join type test
     # Join condition test
     # where clause test
@@ -327,9 +330,12 @@ class LozalizeError
     # pp predicateArry
     suspicious_score_upd(@predicateTree.branches)
     # exnorate algorithm
-    # true_query_PT_construct()
-    # tuple_mutation_test(missinPK,'M')
-    # tuple_mutation_test(unWantedPK,'U')
+    true_query_PT_construct()
+    constraint_query = constraint_predicate_construct()
+    # pp constraint_query
+    # abort('test')
+    tuple_mutation_test(missinPK,'M',constraint_query)
+    tuple_mutation_test(unWantedPK,'U',constraint_query)
 
     # remove constraint_nodes in node_query_mapping
     query = "delete from node_query_mapping where test_id = #{@test_id} and type = 't'"
@@ -341,14 +347,25 @@ class LozalizeError
     j
   end
   def true_query_PT_construct()
-    tWherePT= @tPS['SELECT']['whereClause']
+    @tWherePT= @tPS['SELECT']['whereClause']
     @tPredicateTree = PredicateTree.new('t',false, @test_id)
     root =Tree::TreeNode.new('root', '')
-    @tPredicateTree.build_full_pdtree(@fromPT[0],tWherePT,root)
+    @tPredicateTree.build_full_pdtree(@fromPT[0],@tWherePT,root)
     # tPredicateTree.node_query_mapping_insert()
     # @t_pdtree = @tPredicateTree.pdtree
   end
-  def tuple_mutation_test(pkArry, type)
+  def constraint_predicate_construct()
+
+    t_predicate_collist= @tPredicateTree.all_columns
+    # pp 't_predicate_tree.all_columns'
+    # rename_where_pt = @tQueryObj.parseTree['SELECT']['whereClause']
+    constraintPredicateQuery=ReverseParseTree.whereClauseConst(@tWherePT)
+    # pp 'before'
+    # pp @constraintPredicateQuery
+    constraintPredicateQuery=RewriteQuery.rewrite_predicate_query(constraintPredicateQuery, t_predicate_collist)
+
+  end
+  def tuple_mutation_test(pkArry, type,constraint_predicate)
 
     # tPredicateArry =tPredicateTree.predicateArrayGen(tPDTree)
 
@@ -356,9 +373,11 @@ class LozalizeError
       # pp pk
       # pp type
 
-      pkCond=QueryBuilder.pkCondConstr_strip_tbl_alias(pk)
+      # pkCond=QueryBuilder.pkCondConstr_strip_tbl_alias(pk)
+      pkCond = QueryBuilder.pkCondConstr_strip_tbl_alias_colalias(pk)
+      # pp pk
       # only need exonerating if multiple nodes in a branch are suspicious
-      branchQuery="select distinct branch_name from tuple_node_test_result where #{pkCond};" 
+      branchQuery="select distinct branch_name from tuple_node_test_result where #{pkCond};"
       res = DBConn.exec(branchQuery)
 
       if type =='U'
@@ -369,8 +388,8 @@ class LozalizeError
           # if distinct_nodes.count()>1
             branch =[]
             branch << @predicateTree.branches.find{ |br| br.name == branch_name['branch_name'] }
-            # pp branch
-            tupleMutation = TupleMutation.new(@test_id,pk,type,branch,@fQueryObj,@tQueryObj,@tPredicateTree)
+
+            tupleMutation = TupleMutation.new(@test_id,pk,type,branch,@fQueryObj,constraint_predicate)
             tupleMutation.unwanted_to_satisfied()
           # end
         end
@@ -380,10 +399,12 @@ class LozalizeError
          #  # pp branchQuery
          #  res = DBConn.exec(branchQuery)
           # if res.count()>1
-          tupleMutation = TupleMutation.new(@test_id,pk,type,@predicateTree.branches,@fQueryObj,@tQueryObj,@tPredicateTree) 
+          tupleMutation = TupleMutation.new(@test_id,pk,type,@predicateTree.branches,@fQueryObj,constraint_predicate)
           tupleMutation.missing_to_excluded
+          # abort('missing')
           # end
       end
+      # abort('test')
     end
 
   end
@@ -398,11 +419,19 @@ class LozalizeError
   end
   # create tuple node table
   def tnTableCreation(tableName)
-      q = QueryBuilder.create_tbl(tableName, '', "select #{@pkSelect} from #{@fTable} f where 1 = 0")
+      pk_list = @pkList.join(',')
+      pk_list = "#{pk_list},branch_name,node_name"
+      q = QueryBuilder.create_tbl(tableName, pk_list, "select #{@pkSelect}, 0 as test_id,''::varchar(30) as node_name, ''::varchar(30) as branch_name, ''::varchar(5) as type from #{@fTable} f where 1 = 0")
+      # pp q
       DBConn.exec(q)
 
-      q="ALTER TABLE #{tableName} add column test_id int, add column node_name varchar(30), add column branch_name varchar(30), add column type varchar(5);"
-      DBConn.exec(q)
+      # q="ALTER TABLE #{tableName} add column test_id int, add column node_name varchar(30), add column branch_name varchar(30), add column type varchar(5);"
+      # DBConn.exec(q)
+      # pk=@pkList.join(',')
+      # # add index
+      #  q="create index ix_#{tableName}t on #{tableName} (#{pk},branch_name);"
+      #  pp q
+      # DBConn.exec(q)
   end
   def pkArryGen(res)
     pkArry = []
@@ -410,11 +439,13 @@ class LozalizeError
       pk = []
       @pkList.each do |c|
         h =  Hash.new
+        # binding.pry
         #col = ReverseParseTree.find_col_by_name(@ps['SELECT']['targetList'], c)['fullname']
         col = ReverseParseTree.find_col_by_name(@fPS['SELECT']['targetList'], c)
-        h['col'] = col['col']
         h['val'] = r[c]
         h['alias'] = col['alias']
+        h['col'] = col['col']
+
         pk.push(h)
       end
       pkArry.push(pk)
@@ -551,7 +582,7 @@ class LozalizeError
              ( count_only ?  'count() as count': @pkSelect.gsub('f.','t.'))+
              " FROM #{@tTable} t LEFT JOIN #{@fTable} f ON #{@pkJoin} where #{pkNull} IS NULL"
     res = DBConn.exec(query)
-    @unwanted_tuple_count = count_only ? res[0]['count'].to_i : res.count()
+    @missing_tuple_count = count_only ? res[0]['count'].to_i : res.count()
 
     # puts 'missing rows query'
     # puts query

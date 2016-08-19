@@ -1,12 +1,14 @@
 class TupleMutation
-	def initialize(test_id,pk,type,branches,fQueryObj,tQueryObj,t_predicate_tree)
+	def initialize(test_id,pk,type,branches,fQueryObj,constraintPredicateQuery)
 		@pk = pk
 		# pp @pk
 		@type = type
 		@renamedPK = @pk.map do|pk| 
 			newPK = Hash.new()
-			newPK['col'] = (pk['col'].include?('.') ? pk['col'].split('.')[1].to_s : pk['col'] )+'_pk'
+			col = QueryBuilder.get_colalias(pk)
+			newPK['col'] = (col.include?('.') ? col.split('.')[1].to_s : col )+'_pk'
 			newPK['val'] = pk['val']
+			# newPK['alias'] = pk['alias']
 			newPK
 		end
 
@@ -19,7 +21,8 @@ class TupleMutation
 		@fParseTree = fQueryObj.parseTree
 		# @f_result_tbl=fQueryObj.table
 		f_fromPT = @fParseTree['SELECT']['fromClause']
-		tWherePT = tQueryObj.parseTree['SELECT']['whereClause']
+		@constraintPredicateQuery = constraintPredicateQuery
+		# tWherePT = tQueryObj.parseTree['SELECT']['whereClause']
 		# t_fromPT = tQueryObj.parseTree['SELECT']['fromClause']
 
 		@pkCond=QueryBuilder.pkCondConstr(@pk)
@@ -30,31 +33,42 @@ class TupleMutation
 		@renamePKCond = QueryBuilder.pkCondConstr(@renamedPK)
 		@renamedPKCol = QueryBuilder.pkValWithColConstr(@renamedPK)
 
-		@pkCond_strip_tbl_alias = QueryBuilder.pkCondConstr_strip_tbl_alias(@pk)
+		@pkCond_strip_tbl_alias = QueryBuilder.pkCondConstr_strip_tbl_alias_colalias(@pk)
 
 		allcolumns_construct(f_fromPT)
 
-		constraint_construct(t_predicate_tree, tWherePT)
-
-	end
-
-	def constraint_construct(t_predicate_tree, tWherePT)
-
-		@constraintColumnList= t_predicate_tree.all_columns
-		# pp 't_predicate_tree.all_columns'
-		# pp t_predicate_tree.all_columns
-		@constraintPredicateQuery=ReverseParseTree.whereClauseConst(tWherePT)
-		# pp @constraintPredicateQuery
-		@constraintPredicateQuery=rewrite_predicate_query(@constraintPredicateQuery, @constraintColumnList)
-
-		# pp '@constraintPredicateQuery'
-		# puts @constraintPredicateQuery
+		# constraint_construct(t_predicate_tree, tWherePT)
 		@excluded_query = %Q(
 				(select mutation_branches,mutation_nodes,mutation_cols
 				FROM #{@mutation_tbl}
 				where mutation_branches <> 'none' and mutation_nodes <>'none' and mutation_cols <>'none' )
 				except (#{@constraintPredicateQuery}))
+
+		if type == 'M'
+			query = "select branch_name,node_name from tuple_node_test_result where #{@pkCond_strip_tbl_alias}"
+			@suspicious_nodes = DBConn.exec(query).to_a
+		end
+
 	end
+
+	# def constraint_construct(t_predicate_tree, tWherePT)
+
+	# 	@constraintColumnList= t_predicate_tree.all_columns
+	# 	# pp 't_predicate_tree.all_columns'
+	# 	pp t_predicate_tree.all_columns
+	# 	@constraintPredicateQuery=ReverseParseTree.whereClauseConst(tWherePT)
+	# 	pp 'before'
+	# 	pp @constraintPredicateQuery
+	# 	@constraintPredicateQuery=rewrite_predicate_query(@constraintPredicateQuery, @constraintColumnList)
+
+	# 	pp 'after @constraintPredicateQuery'
+	# 	puts @constraintPredicateQuery
+	# 	@excluded_query = %Q(
+	# 			(select mutation_branches,mutation_nodes,mutation_cols
+	# 			FROM #{@mutation_tbl}
+	# 			where mutation_branches <> 'none' and mutation_nodes <>'none' and mutation_cols <>'none' )
+	# 			except (#{@constraintPredicateQuery}))
+	# end
 	# def predicate_construct
 		# # get the failed predicates related the error in this pk
 		# query ="select distinct t.branch_name,n.node_name,query,columns,suspicious_score "+
@@ -118,11 +132,14 @@ class TupleMutation
 		1.upto(max) do |i|
 			bn_pair = unwanted_branch_node_pairs(i)
 			mutationTbl_upd(bn_pair,updateTup)
+
 			# pp @excluded_query
 			exluded=DBConn.exec(@excluded_query)
 			nd_combinations_set = nodes.combination(i).map{|nd| nd.to_set}.to_set
+			# binding.pry
 			if exluded.count() < nd_combinations_set.count
 				found = true
+
 				exluded_nodes=[]
 				exluded.each do |e|
 					if i == 1
@@ -157,13 +174,15 @@ class TupleMutation
 		# it might be due to missing node on some column combinations
 		unless found
 			puts 'fail to find in existing branches. Trying column combinations'
-			exnorate_all_nodes(@branches[0].name)
+			exnorate_all_nodes_in_branch(@branches[0].name)
 			max = @remaining_cols.map{|cols| cols.count}.max
 			1.upto(max) do |i|
 				ith_col_combinations = @remaining_cols.select{|cols| cols.count == i }
 				# the ith combination is the the number of guilty branches
 				bn_pair = remaining_col_combination_bn_pairs(ith_col_combinations)
 				# mutationTbl_create()
+				# pp "#{i}th column combination"
+				# pp ith_col_combinations
 				mutationTbl_upd(bn_pair,updateTup)
 				satisfied=DBConn.exec(@constraintPredicateQuery)
 				if satisfied.count() >0
@@ -177,6 +196,8 @@ class TupleMutation
 					nd['location'] = 0
 					nd['type'] = 'f'
 					blm_nodes <<nd
+
+
 					blame_nodes(blm_nodes)
 					# end
 					found = true
@@ -205,23 +226,27 @@ class TupleMutation
 			mutationTbl_upd(bn_pair,updateTup)
 
 			# pp @constraintPredicateQuery
-			# if @pk.any?{|pk| pk['col'] = 'emp_no' and pk['val'] = '58160'}
-			# 	abort('investigate')
-			# end
+
+			# binding.pry
 			satisfied=DBConn.exec(@constraintPredicateQuery)
 			if satisfied.count() >0
 				uniq_branches = satisfied.to_a.uniq{|s| s['mutation_branches']}
 				if uniq_branches.count < @branches.combination(i).count
 					found = true
-					satisfied_branches = uniq_branches.map do |s|
-						if i == 1
-							"'#{s['mutation_branches']}'"
-						else
-							s['mutation_branches'].split(',').uniq.map{|b| "'#{b}'"}.join(',')
+					satisfied_nodes =[]
+					uniq_branches.each do |s|
+						# if i == 1
+						# 	"'#{s['mutation_branches']}'"
+						# else
+						# 	s['mutation_branches'].split(',').uniq.map{|b| "'#{b}'"}.join(',')
+						# end
+						s['mutation_branches'].split(',').each do |br|
+							satisfied_nodes = satisfied_nodes + @suspicious_nodes.find_all{|nd| nd['branch_name'] == br}
 						end
-					end.join(',')
-					query = "select branch_name,node_name from tuple_node_test_result where #{@pkCond_strip_tbl_alias} and branch_name in (#{satisfied_branches})"
-					satisfied_nodes = DBConn.exec(query)
+					end
+					# query = "select branch_name,node_name from tuple_node_test_result where #{@pkCond_strip_tbl_alias} and branch_name in (#{satisfied_branches})"
+					# satisfied_nodes = DBConn.exec(query)
+					satisfied_nodes.uniq!
 					exnorate_nodes(satisfied_nodes)
 					return
 				end
@@ -231,7 +256,7 @@ class TupleMutation
 		# it might be due to missing branch on some column combinations
 		unless found
 			puts 'fail to find in existing branches. Trying column combinations'
-			exnorate_all_nodes
+			# exnorate_all_suspicious_nodes
 			max = @remaining_cols.map{|cols| cols.count}.max
 			1.upto(max) do |i|
 				ith_col_combinations = @remaining_cols.select{|cols| cols.count == i }
@@ -242,12 +267,13 @@ class TupleMutation
 				bn_pair = remaining_col_combination_bn_pairs(ith_col_combinations)
 				# mutationTbl_create()
 				mutationTbl_upd(bn_pair,updateTup)
+				# binding.pry
 				excluded=DBConn.exec(@excluded_query)
 				if excluded.count() >0
 					1.upto(i) do |j|
 						nodes = []
 						nd = Hash.new()
-
+						# binding.pry
 						nd['branch_name'] = "missing_branch#{i}"
 						nd['node_name'] = "missing_node#{i}"
 						nd['columns'] = "{#{excluded.map{|e| e['mutation_cols']}.join(',')}}"
@@ -255,13 +281,25 @@ class TupleMutation
 						nd['location'] = 0
 						nd['type'] = 'f'
 						nodes <<nd
+						# abort('test')
+						# if there's only one branch
+						# And if the missing branch containing same set of columns as the existing branch
+						# then we cannot exonerate
+						if @branches.count == 1
+							# binding.pry
+							old_cols = @branches[0].columns.map{|c| "#{c.renamed_colname}"}.join(',')
+							puts 'No need to exonerate'
+							found = true
+							return
+						end
 						blame_nodes(nodes)
 					end
 
 					found = true
-					return
+					break
 				end
 			end
+			exnorate_all_suspicious_nodes
 		end
 		unless found
 			abort('Fail to find the error')
@@ -302,7 +340,8 @@ class TupleMutation
 	def get_first_exludedPK()
 
 		allColumns = @allColumnList.map do |field|
-			"#{field.colname} as #{field.relname}_#{field.colname} "
+			# "#{field.colname} as #{field.relname}_#{field.colname} "
+			"#{field.relname}_#{field.colname} "
 		end.join(',')
 		query = "select #{allColumns} from golden_record where type = 'excluded';"
 		# pp query
@@ -313,7 +352,8 @@ class TupleMutation
 	# this function return the first excluded pk with the different value in predicateColumn
 	def get_first_satisfiedPK()
 		allColumns = @allColumnList.map do |field|
-			"#{field.colname} as #{field.relname}_#{field.colname} "
+			# "#{field.colname} as #{field.relname}_#{field.colname} "
+			"#{field.relname}_#{field.colname} "
 		end.join(',')
 		query = "select #{allColumns} from golden_record where type = 'satisfied' and branch = '#{@branches[0].name}';"
 		res = DBConn.exec(query)
@@ -355,30 +395,35 @@ class TupleMutation
 	# 	# puts query
 	# 	DBConn.exec(query)
 	# end
-	def rewrite_predicate_query(query, column_list)
-		# pp column_list
-		column_list.each do |col|
-			# remove table alias
-			query=RewriteQuery.replace_fullname_with_colname(query,col)
+	# def rewrite_predicate_query(query, column_list)
+	# 	# pp column_list
+	# 	column_list.each do |col|
+	# 		# remove table alias
+	# 		pp col
+	# 		# query=RewriteQuery.replace_fullname_with_colname(query,col)
+	# 		# pp'after remove table alias'
+	# 		# pp query
+	# 		# replace colname with colalias
+	# 		# query=RewriteQuery.replace_colname_with_colalias(query,col)
+	# 		query=RewriteQuery.replace_fullname_with_renamed_colname(query,col)
+	# 		pp'after remove table alias'
+	# 		pp query
 
-			# replace colname with colalias
-			# query=RewriteQuery.replace_colname_with_colalias(query,col)
-			query=RewriteQuery.replace_colname_with_renamed_colname(query,col)
-		end
-		# puts 'rewrite_predicate_query'
-		# pp query
-		query="SELECT mutation_branches,mutation_nodes, mutation_cols FROM #{@mutation_tbl} WHERE mutation_branches <> 'none' and mutation_cols <>'none' and "+query
+	# 	end
+	# 	# puts 'rewrite_predicate_query'
+	# 	# pp query
+	# 	query="SELECT mutation_branches,mutation_nodes, mutation_cols FROM #{@mutation_tbl} WHERE mutation_branches <> 'none' and mutation_cols <>'none' and "+query
 
-		# query="SELECT count(1) FROM #{@mutation_tbl} WHERE "+query
+	# 	# query="SELECT count(1) FROM #{@mutation_tbl} WHERE "+query
 
-	end
+	# end
 	def mutationTbl_create()
 		# colCombination = @allColumnList.combination(ith_combination).to_a.map{|c| c.map{|col| col.colname}.join(',')}.map{|c| "'#{c}'"}.join(',')
 
 		renamedPKCol = @pk.map{|pk|  "#{pk['col']} as #{pk['alias']}_pk" }.join(', ')
 		targetListReplacement ="#{renamedPKCol},'none'::varchar(300) as mutation_branches,'none'::varchar(300) as mutation_nodes,'none'::varchar(300) as mutation_cols,#{@allColumns}"
 		query =  ReverseParseTree.reverseAndreplace(@fParseTree, targetListReplacement,@pkCond)
-		pkList = @renamedPK.map{|pk| pk['col']}.join(', ')+',mutation_branches,mutation_cols'
+		pkList = @renamedPK.map{|pk| QueryBuilder.get_colalias(pk) }.join(', ')+',mutation_branches,mutation_nodes,mutation_cols'
 		query=QueryBuilder.create_tbl(@mutation_tbl,pkList,query)
 		# puts 'mutationTbl_create'
 		# puts query
@@ -425,6 +470,7 @@ class TupleMutation
 		# if @pk.any?{|pk| pk['col'] = 'emp_no' and pk['val'] = '58160'}
 		# 	pp bn_pairs
 		# end
+		# pp query
 		DBConn.exec(query)
 
 	end
@@ -477,13 +523,13 @@ class TupleMutation
 						end
 					else
 						node = br.nodes[0]
-						bn['nodes']=node.name
+						bn['nodes']=bn['nodes'] +(bn['nodes'].empty? ? '': ',')+ node.name
 						# cols_strip_relalias = node.columns.map {|c| c.strip_relalias}
 						# @remaining_cols.delete(cols_strip_relalias.to_set)
 						# bn['cols'] = bn['cols'] + ( idx >0 ? "," : "") + "#{cols_strip_relalias.join(',')}"	
 						column_set = node.columns.to_set
 						@remaining_cols.delete(column_set)
-						bn['cols']= column_set
+						bn['cols']= bn['cols']+column_set
 					end
 				end
 			end
@@ -510,7 +556,7 @@ class TupleMutation
 					# cols_strip_relalias = nd.columns.map {|c| c.strip_relalias}
 					colnames = nd.columns.map {|c| c.colname}
 					# bn['cols'] = bn['cols']+ ( idx >0 ? "," : "") + "#{cols_strip_relalias.join(',')}"
-					column_set = nd.columns.to_set
+					column_set = nd.columns.uniq{|c| c.fullname }.to_set
 					# pp 'column_set'
 					# pp column_set
 					bn['cols'].merge(column_set)
@@ -534,19 +580,31 @@ class TupleMutation
 			branch_node_cond=" branch_name = '#{nd['branch_name']}' and node_name = '#{nd['node_name']}'"
 			query ="UPDATE node_query_mapping"+
 			      " SET suspicious_score = suspicious_score -1 "+
-				  "where test_id = #{@test_id} and type='f' and suspicious_score >0"+ 
-				  "and #{branch_node_cond}"
+				  " where test_id = #{@test_id} and type='f' and suspicious_score >0"+ 
+				  " and #{branch_node_cond}"
 			# pp query
 			DBConn.exec(query)
 		end
 
 	end
-	def exnorate_all_nodes(branch = '')
+	def exnorate_all_nodes_in_branch(branch)
 		query ="UPDATE node_query_mapping "+
-		      "SET suspicious_score = suspicious_score - 1 "+
-			  "where test_id = #{@test_id} and type = 'f' and suspicious_score >0 and branch_name not like 'missing%' and node_name not like 'missing%'"+
-			  (branch =='' ? '' : " and branch_name = '#{branch}'")
+		      " SET suspicious_score = suspicious_score - 1 "+
+			  " where test_id = #{@test_id} and type = 'f' and suspicious_score >0 and branch_name not like 'missing%' and node_name not like 'missing%'"+
+			   " and branch_name = '#{branch}'"
 		# pp query
+		DBConn.exec(query)
+	end
+	def exnorate_all_suspicious_nodes()
+		nodes_query = @suspicious_nodes.map do |sn|
+						"( branch_name = '#{sn['branch_name']}' and node_name = '#{sn['node_name']}') "
+					end.join(' or ')
+		query ="UPDATE node_query_mapping "+
+		      " SET suspicious_score = suspicious_score - 1 "+
+			  " where test_id = #{@test_id} and type = 'f' and suspicious_score >0 and branch_name not like 'missing%' and node_name not like 'missing%' "+
+			  " and #{nodes_query} "
+		# pp query
+		# abort('test')
 		DBConn.exec(query)
 	end
 	def blame_nodes(nodes)

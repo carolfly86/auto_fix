@@ -24,7 +24,17 @@ module RewriteQuery
     newQuery =  ReverseParseTree.reverseAndreplace(parseTree, targetListReplacement,'')
     return newQuery, rewriteCols
   end
+  def RewriteQuery.rewrite_predicate_query(query, column_list)
+    # pp column_list
+    column_list.each do |col|
+      query=RewriteQuery.replace_fullname_with_renamed_colname(query,col)
+    end
+    query="SELECT mutation_branches,mutation_nodes, mutation_cols "+
+          " FROM mutation_tuple "+
+          " WHERE mutation_branches <> 'none' and mutation_cols <>'none' and "+
+          query
 
+  end
   def RewriteQuery.rename_duplicate_columns(colList)
     colList.group_by{|f| f.colname}.each do |key, val|
       if val.size >1
@@ -60,9 +70,11 @@ module RewriteQuery
   end
 
 
-  # def RewriteQuery.replace_fullname_with_colalias(query,col)
-  #   query = query.gsub(col.fullname,col.colalias) unless col.colalias.to_s.empty?
-  #   query
+  # def RewriteQuery.replace_fullname_with_renamed_colname(query,col)
+  #   # from ( table_alias.colname | colname)  to renamed_colname
+
+  #   query.gsub(col.fullname,col.renamed_colname) 
+  #   # query
   # end
   # def RewriteQuery.remove_tbl_alias(query,col)
   #   query.gsub(col.fullname,col.colname)

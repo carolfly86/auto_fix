@@ -100,6 +100,13 @@ module QueryBuilder
     pk.map{|f| "#{f['col'].to_s.strip_relalias} = #{f['val'].to_s.str_int_rep}" }.join(' AND ')
     #p pkcond
   end
+  def QueryBuilder.pkCondConstr_strip_tbl_alias_colalias(pk)
+    pk.map do |f|
+      colname = QueryBuilder.get_colalias(f)
+      "#{colname} = #{f['val'].to_s.str_int_rep}" 
+    end.join(' AND ')
+    #p pkcond
+  end
   def QueryBuilder.pkValConstr(pk)
     pk.map{|pk|  pk['val'].to_s.str_int_rep }.join(', ')
     #p pkcond
@@ -120,5 +127,7 @@ module QueryBuilder
     pk.map{|pk|  "t.#{pk['col']} = f.#{pk['col']}" }.join(' AND ')
     #p pkcond
   end
-
+  def QueryBuilder.get_colalias(col)
+    col['alias'].to_s.empty? ? col['col'].to_s.strip_relalias : col['alias']
+  end
 end

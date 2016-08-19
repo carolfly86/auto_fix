@@ -29,7 +29,9 @@ def queryTest(script)
 			value.each do |opt|
 				query=opt['query']
 				pk_list=opt['pkList']
-				f_options = {:query=> query, :pkList =>pk_list,  :table =>'f_result' }
+				relevent = opt['relevent']
+				pp relevent
+				f_options = {:query=> query, :pkList =>pk_list,  :table =>'f_result', :relevent =>relevent }
 				f_options_list<< f_options
 			end
 
@@ -62,7 +64,7 @@ def queryTest(script)
 		pp fqueryObj.score['totalScore']
 		duration = (endTime - beginTime).to_i
 		puts "duration: #{duration}"
-		update_test_result_tbl(fqueryObj.query,tqueryObj.query,m_u_tuple_count,duration,fqueryObj.score['totalScore'], idx)
+		update_test_result_tbl(idx,fqueryObj.query,tqueryObj.query,m_u_tuple_count,duration,fqueryObj.score['totalScore'],f_options[:relevent])
 	end
 
 	# puts "begin fix"
@@ -95,7 +97,7 @@ end
 def create_test_result_tbl()
 	query =  %Q(DROP TABLE if exists test_result;
 	CREATE TABLE test_result
-	(test_id int, fquery text, tquery text, m_u_tuple_count bigint, duration bigint, total_score bigint);)
+	(test_id int, fquery text, tquery text, m_u_tuple_count bigint, duration bigint, total_score bigint, harmonic_mean float(2), jaccard float(2));)
   	 # pp query
     DBConn.exec(query)
 
@@ -105,7 +107,7 @@ def create_test_result_tbl()
   	 # pp query
     DBConn.exec(query)
 end
-def update_test_result_tbl(fquery,tquery,m_u_tuple_count,duration,total_score,test_id)
+def update_test_result_tbl(test_id,fquery,tquery,m_u_tuple_count,duration,total_score,relevent)
 
 	fquery = fquery.gsub("'","''")
 	tquery = tquery.gsub("'","''")
@@ -115,7 +117,9 @@ def update_test_result_tbl(fquery,tquery,m_u_tuple_count,duration,total_score,te
 				'"#{tquery}"',
 				#{m_u_tuple_count},
 				#{duration},
-				#{total_score}
+				#{total_score},
+				0,
+				0
 			)
 	# puts query
     DBConn.exec(query)
@@ -143,8 +147,21 @@ def update_test_result_tbl(fquery,tquery,m_u_tuple_count,duration,total_score,te
 				where type = 'f' and suspicious_score >0"
     res = DBConn.exec(query)
     puts 'result:'
-    res.each_row do |r|
+    answer = Set.new
+    res.each do |r|
     	pp r
+    	predicate = "#{r['branch_name']}-#{r['node_name']}"
+    	answer.add(predicate)
     end
+
+    # update accuracy
+    # pp relevent.to_a
+    # binding.pry
+    accuracy = Accuracy.new(answer,relevent.to_set)
+    harmonic_mean = accuracy.harmonic_mean
+    jaccard = accuracy.jaccard
+
+    query = "update test_result set harmonic_mean = #{harmonic_mean}, jaccard = #{jaccard} where test_id = #{test_id}"
+    res = DBConn.exec(query)
 end
 

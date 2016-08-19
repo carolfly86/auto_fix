@@ -2,7 +2,7 @@ require_relative 'db_connection'
 
 class Branch
 	attr_accessor :name, :nodes
-
+    attr_reader :columns
     def passed_nodes(pkCond, test_id, tuple_type)
         query = "select node_name from tuple_node_test_result where #{pkCond} and test_id = #{test_id} and type = '#{tuple_type}' and branch_name = '#{@name}'"
         res = DBConn.exec(query)
@@ -16,6 +16,17 @@ class Branch
         elsif tuple_type =='U'
             @nodes.find_all{|nd| targetNodes.include?(nd.name) }
         end
-
     end
-end 
+    def columns
+        # relalias.colname as colalias
+        @columns = []
+        # binding.pry
+        @nodes.each do |nd|
+            nd.columns.each do |col|
+                # pp col
+                @columns << col unless @columns.include?(col)
+            end
+        end
+        @columns
+    end
+end
