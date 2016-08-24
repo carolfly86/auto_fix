@@ -15,7 +15,8 @@ class QueryObj
     @score=options.fetch(:score, Hash.new)
     # initialize with script
     if script != ''
-      @queryJson= JSON.parse(File.read("sql/#{script}.json"))
+      dbname = script.split('_')[0]
+      @queryJson= JSON.parse(File.read("sql/#{dbname}/#{script}.json"))
       @query=@queryJson['query']
       @pkList=@queryJson['pkList']
     # initialize with query and pklist  

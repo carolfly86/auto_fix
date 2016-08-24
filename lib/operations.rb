@@ -40,8 +40,8 @@ def queryTest(script,golden_record_opr,is_baseline)
 	elsif golden_record_opr == 'i'
 		query = 'drop table IF EXISTS golden_record;'
 		DBConn.exec(query)
-		gr_script = "sql/golden_record/#{script}_gr.sql"
-		DBConn.exec_script(gr_script)
+		# gr_script = "sql/golden_record/#{script}_gr.sql"
+		DBConn.exec_script(script)
 		# abort('test')
 	end
 	# pp 'test'
