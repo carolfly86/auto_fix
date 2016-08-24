@@ -62,35 +62,35 @@ module QueryBuilder
       pkCreate = pkList.to_s.empty? ? '' : "ALTER TABLE #{tblName} ADD PRIMARY KEY (#{pkList});" 
       query =  "DROP TABLE IF EXISTS #{tblName}; #{insert}; #{pkCreate}"
     end
-   def QueryBuilder.satisfactionMap(tblName,fDataset,fPKList)
-      query = "DROP TABLE if exists #{tblName}; "
-      pkArray = fPKList.split(',')
-      colsQuery = QueryBuilder.find_cols_by_data_typcategory(fDataset)
-      cols = DBConn.exec(colsQuery)
-      cols.each do |r|
-        unless pkArray.include? r['column_name'] 
-          pkArray << " 0 as #{r['column_name']} "
-        end
-      end
-      colList = pkArray.join(',')
-      query += "select #{colList} into #{tblName} from #{fDataset};"
-      query += "ALTER TABLE #{tblName} ADD PRIMARY KEY (#{fPKList})"
-    end
+   # def QueryBuilder.satisfactionMap(tblName,fDataset,fPKList)
+   #    query = "DROP TABLE if exists #{tblName}; "
+   #    pkArray = fPKList.split(',')
+   #    colsQuery = QueryBuilder.find_cols_by_data_typcategory(fDataset)
+   #    cols = DBConn.exec(colsQuery)
+   #    cols.each do |r|
+   #      unless pkArray.include? r['column_name'] 
+   #        pkArray << " 0 as #{r['column_name']} "
+   #      end
+   #    end
+   #    colList = pkArray.join(',')
+   #    query += "select #{colList} into #{tblName} from #{fDataset};"
+   #    query += "ALTER TABLE #{tblName} ADD PRIMARY KEY (#{fPKList})"
+   #  end
 
-    def QueryBuilder.totalScore(tblName,pkList)
-      pkArray = pkList.split(',')
-      colsQuery = QueryBuilder.find_cols_by_data_typcategory(tblName)
-      cols = DBConn.exec(colsQuery)
-      colArray=[]
-      cols.each do |r|
-        unless pkArray.include? r['column_name'] 
-          colArray << " sum(#{r['column_name']}) "
-        end
-      end
-      colQuery = colArray.join('+')
-      binding.pry
-      query = "select ( (select #{colQuery} from #{tblName})::float/(select count(1)*#{cols.count()} from #{tblName})::float)::float as score;"
-    end
+    # def QueryBuilder.totalScore(tblName,pkList)
+    #   pkArray = pkList.split(',')
+    #   colsQuery = QueryBuilder.find_cols_by_data_typcategory(tblName)
+    #   cols = DBConn.exec(colsQuery)
+    #   colArray=[]
+    #   cols.each do |r|
+    #     unless pkArray.include? r['column_name'] 
+    #       colArray << " sum(#{r['column_name']}) "
+    #     end
+    #   end
+    #   colQuery = colArray.join('+')
+    #   binding.pry
+    #   query = "select ( (select #{colQuery} from #{tblName})::float/(select count(1)*#{cols.count()} from #{tblName})::float)::float as score;"
+    # end
 
   def QueryBuilder.pkCondConstr(pk,tbl_alias='')
     pk.map{|pk| (tbl_alias.empty? ? '' : "#{tbl_alias}.")+ pk['col']+' = '+ pk['val'].to_s.str_int_rep }.join(' AND ')

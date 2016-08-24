@@ -305,7 +305,7 @@ class LozalizeError
       p "Unwanted Pk count #{unWantedPK.count()}"
       # create unwanted_tuple_branch table
       whereErrList = whereCondTest(unWantedPK,'U')
-      joinErrList = jointypeErr(query,'U')
+      # joinErrList = jointypeErr(query,'U')
     end
 
 
@@ -321,7 +321,7 @@ class LozalizeError
       p "Missing PK count #{missinPK.count()}"
 
       whereErrList = whereCondTest(missinPK,'M')
-      joinErrList = jointypeErr(query,'M')
+      # joinErrList = jointypeErr(query,'M')
     end
 
     #p joinErrList.to_a
@@ -332,6 +332,7 @@ class LozalizeError
     # exnorate algorithm
     true_query_PT_construct()
     constraint_query = constraint_predicate_construct()
+    allcolumns_construct()
     tuple_mutation_test(missinPK,'M',constraint_query)
     tuple_mutation_test(unWantedPK,'U',constraint_query)
 
@@ -340,7 +341,7 @@ class LozalizeError
     DBConn.exec(query)
 
     j = Hash.new
-    j['JoinErr'] = joinErrList
+    # j['JoinErr'] = joinErrList
     j['WhereErr'] = whereErrList
     j
   end
@@ -361,6 +362,29 @@ class LozalizeError
     constraintPredicateQuery=RewriteQuery.rewrite_predicate_query(constraintPredicateQuery, t_predicate_collist)
 
   end
+  def allcolumns_construct()
+    all_columns = DBConn.getAllRelFieldList(@fromPT)
+    # @allColumnList = all_columns
+    # pp @allColumnList
+    @all_column_combinations = []
+
+    max = all_columns.count()
+    1.upto(max) do |i|
+      all_columns.combination(i).each do |cc|
+        @all_column_combinations << cc.to_set
+      end
+    end
+    @column_combinations = Columns_Combination.new(all_columns)
+    # pp @allColumnList
+    @allColumns_select = all_columns.map do |field|
+      col = field.relname.nil? ? "#{field.relname}.#{field.colname}" : "#{field.relalias}.#{field.colname}"
+      "#{col} as #{field.renamed_colname}"
+    end.join(',')
+    @allColumns_renamed = all_columns.map do |field|
+      "#{field.renamed_colname} "
+    end.join(',')
+  end
+
   def tuple_mutation_test(pkArry, type,constraint_predicate)
 
     # tPredicateArry =tPredicateTree.predicateArrayGen(tPDTree)
@@ -368,14 +392,14 @@ class LozalizeError
     pkArry.each do |pk|
       # pp pk
       # pp type
-
+      @column_combinations.reset_processed()
       # pkCond=QueryBuilder.pkCondConstr_strip_tbl_alias(pk)
       pkCond = QueryBuilder.pkCondConstr_strip_tbl_alias_colalias(pk)
-      # pp pk
+      # pp "#{pkCond}: #{Time.now}"
       # only need exonerating if multiple nodes in a branch are suspicious
       branchQuery="select distinct branch_name from tuple_node_test_result where #{pkCond};"
       res = DBConn.exec(branchQuery)
-
+      # pp "begin: #{Time.now}"
       if type =='U'
         # pp branchQuery
         res.each do |branch_name|
@@ -384,9 +408,13 @@ class LozalizeError
           # if distinct_nodes.count()>1
             branch =[]
             branch << @predicateTree.branches.find{ |br| br.name == branch_name['branch_name'] }
-
+            # pp "branch: #{Time.now}"
             tupleMutation = TupleMutation.new(@test_id,pk,type,branch,@fQueryObj,constraint_predicate)
+            # pp "new: #{Time.now}"
+            tupleMutation.allcolumns_construct(@column_combinations, @allColumns_select,@allColumns_renamed)
+            # pp "allcolumns_construct: #{Time.now}"
             tupleMutation.unwanted_to_satisfied()
+            # pp "unwanted_to_satisfied: #{Time.now}"
           # end
         end
       elsif type == 'M'
@@ -396,10 +424,19 @@ class LozalizeError
          #  res = DBConn.exec(branchQuery)
           # if res.count()>1
           tupleMutation = TupleMutation.new(@test_id,pk,type,@predicateTree.branches,@fQueryObj,constraint_predicate)
-          tupleMutation.missing_to_excluded
+          # tupleMutation.allcolumns_construct(@all_column_combinations, @allColumns_select,@allColumns_renamed)
+          tupleMutation.allcolumns_construct(@column_combinations, @allColumns_select,@allColumns_renamed)
+
+          tupleMutation.missing_to_excluded()
           # abort('missing')
           # end
       end
+      # if pk[0]['col'] == 'e.emp_no' and pk[0]['val'] == '237542'
+      #   binding.pry
+      #   abort('test')
+      # end
+      # pp "end: #{Time.now}"
+
       # abort('test')
     end
 
