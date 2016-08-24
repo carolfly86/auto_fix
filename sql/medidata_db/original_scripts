@@ -1,0 +1,212 @@
+1.
+select sg.name, sg.uuid, s.id, d.id, md.uuid from medidata_studies as sg 
+join studies as s on sg.id = nullif(s.external_id, '')::int
+left join depots d on d.study_id = s.id
+join medidata_depots md on md.id = d.medidata_depot_id
+
+2.
+select ms.oid, ms.live_date, s.id from medidata_studies as ms
+join studies as s on ms.id = nullif(s.external_id, '')::int
+where ms.parent_id is not null and s.id = 1098
+
+3. 
+select * from lots as l
+left join inventory_items i on l.id = i.lot_id
+where l.study_id = 1 and l.depot_id = 12
+
+4. 
+select * from medidata_depots md
+join depots d on d.medidata_depot_id = md.id
+left join unnumbered_inventory_items i on d.id = i.depot_id
+join lots l on i.lot_id = l.id
+join article_types a on l.article_type_id = a.id 
+where md.number is not null
+and md.number <> ''
+and d.study_id = 19
+and d.id = 317
+and i.status in (1,2,3,6)
+
+5.
+select * from medidata_depots md
+join depots d on d.medidata_depot_id = md.id
+left join inventory_items i on d.id = i.depot_id
+join lots l on i.lot_id = l.id
+join article_types a on l.article_type_id = a.id 
+where md.number = ''
+and d.study_id = 441
+and d.id = 531
+and i.status in (1,2,3,6)
+
+6.
+SELECT *
+FROM medidata_sites ms
+JOIN sites s ON ms.id = nullif(s.external_id, '')::int
+LEFT OUTER JOIN shipments sh ON s.id = sh.destination_site_id
+where s.study_id = 441
+ORDER BY s.id;
+
+7.
+select *
+FROM medidata_sites ms	
+JOIN sites sit	
+	ON nullif(sit.external_id, '')::int = ms.id
+LEFT JOIN unnumbered_inventory_items ui	
+	ON sit.id = ui.site_id
+JOIN lots l	
+	ON ui.lot_id = l.id
+JOIN article_types atype	
+	ON l.article_type_id = atype.id
+WHERE ms.number IS NOT NULL
+	AND ms.number <> ''
+and sit.study_id = 692
+
+8.
+SELECT *
+FROM sites sit
+INNER JOIN medidata_sites ms ON nullif(sit.external_id, '')::int = ms.id
+INNER JOIN shipments sh ON sh.destination_site_id = sit.id
+INNER JOIN shipment_inventory_items shi ON sh.id = shi.shipment_id
+LEFT JOIN inventory_items i ON shi.inventory_item_id = i.id
+	AND sit.id = i.site_id
+INNER JOIN lots l ON i.lot_id = l.id
+INNER JOIN article_types atype ON i.article_type_id = atype.id
+WHERE ms.number IS NOT NULL
+	AND ms.number <> ''
+	and sit.study_id = 441
+order by sit.study_id
+
+9.
+SELECT *
+FROM subjects su
+join sites s on su.site_id = s.id
+join medidata_sites ms on nullif(s.external_id, '')::int = ms.id
+where s.study_id = 38
+
+10.
+select * 
+from subjects su
+join subject_visits sv	on su.id = sv.subject_id
+join visits v on sv.visit_id = v.id
+join unnumbered_inventory_items ui on sv.id = ui.subject_visit_id	
+join lots l on ui.lot_id = l.id
+join article_types atype on l.article_type_id = atype.id
+left join regimes r on su.regime_id = r.id
+left join (
+	select sv_randomized.subject_id, min(sv_randomized.occurred) as randomization_occurred
+	from subject_visits sv_randomized
+	join visits v_randomized on sv_randomized.visit_id = v_randomized.id
+		and v_randomized.rand_event = true
+	group by sv_randomized.subject_id
+) subject_randomization_visits
+	on su.id = subject_randomization_visits.subject_id
+where su.study_id = 770
+order by su.study_id
+
+11.
+select * 
+from subjects su		
+join subject_visits sv		
+	on su.id = sv.subject_id	
+join visits v		
+	on sv.visit_id = v.id	
+join inventory_items i		
+	on sv.id = i.subject_visit_id	
+join article_types atype
+	on i.article_type_id = atype.id	
+left join regimes r		
+	on su.regime_id = r.id
+left join (
+	select sv_randomized.subject_id, min(sv_randomized.occurred) as randomization_occurred
+	from subject_visits sv_randomized
+	join visits v_randomized on sv_randomized.visit_id = v_randomized.id
+		and v_randomized.rand_event = true
+	group by sv_randomized.subject_id
+) subject_randomization_visits
+	on su.id = subject_randomization_visits.subject_id
+	where su.study_id = 8
+order by su.study_id
+
+12.
+select *
+FROM shipments sh
+INNER JOIN shipment_unnumbered_inventory_items sii
+    ON sh.id = sii.shipment_id
+LEFT JOIN unnumbered_inventory_items ii
+    ON sii.unnumbered_inventory_item_id = ii.id
+INNER JOIN lots l
+    ON ii.lot_id = l.id
+INNER JOIN article_types art
+    ON l.article_type_id = art.id
+where sh.status in (1,2)
+and sh.study_id = 4
+and sh.origin_depot_id = 4
+order by sh.study_id, sh.origin_depot_id
+
+13.
+select *
+FROM shipments sh
+INNER JOIN shipment_inventory_items sii
+    ON sh.id = sii.shipment_id
+LEFT JOIN inventory_items ii
+    ON sii.inventory_item_id = ii.id
+INNER JOIN article_types art
+    ON ii.article_type_id = art.id
+    INNER JOIN lots l
+    ON ii.lot_id = l.id
+where sh.status in (1,2)
+and sh.study_id = 443
+and sh.origin_depot_id = 556
+order by sh.study_id, sh.origin_depot_id
+
+14.
+select * 
+from medidata_depots md_destination          
+join depots d_destination            
+    on d_destination.medidata_depot_id = md_destination.id        
+join shipments sh           
+    on sh.destination_depot_id = d_destination.id        
+join depots d           
+    on sh.origin_depot_id = d.id        
+join medidata_depots md         
+    on d.medidata_depot_id = md.id 
+where sh.status in (1,2)
+and sh.study_id = 441
+and sh.origin_depot_id = 532
+
+15.
+select * 
+from medidata_sites ms          
+join sites s            
+    on nullif(s.external_id, '')::int = ms.id        
+join shipments sh           
+    on sh.destination_site_id = s.id        
+join depots d           
+    on sh.origin_depot_id = d.id        
+join medidata_depots md         
+    on d.medidata_depot_id = md.id 
+where sh.status in (1,2)
+and sh.study_id = 443
+and d.id = 557
+order by sh.study_id
+
+16.
+select *
+FROM medidata_studies ms	
+JOIN studies s	
+        ON nullif(s.external_id, '')::int = ms.id
+JOIN sites sit
+        ON sit.study_id = s.id
+JOIN medidata_sites msites	
+        ON nullif(sit.external_id, '')::int = msites.id
+JOIN subjects su	
+        ON su.site_id = sit.id
+JOIN inventory_items i	
+        ON i.subject_id = su.id
+JOIN article_types atype	
+        ON i.article_type_id = atype.id
+JOIN lots l	
+        ON i.lot_id = l.id
+JOIN subject_visits sv	
+        ON i.subject_visit_id = sv.id
+WHERE i.status = 5 
+and sit.study_id =33

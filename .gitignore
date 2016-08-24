@@ -1,1 +1,4 @@
 config/*
+
+# Mac OS X Finder
+.DS_Store
