@@ -284,7 +284,7 @@ class LozalizeError
 
 
   # where cond error localization
-  def selecionErr
+  def selecionErr(is_baseline = 'n')
 
     whereErrList = []
     joinErrList = []
@@ -330,12 +330,17 @@ class LozalizeError
     # pp predicateArry
     suspicious_score_upd(@predicateTree.branches)
     # exnorate algorithm
-    true_query_PT_construct()
-    constraint_query = constraint_predicate_construct()
-    allcolumns_construct()
-    tuple_mutation_test(missinPK,'M',constraint_query)
-    tuple_mutation_test(unWantedPK,'U',constraint_query)
 
+    if (is_baseline == 'n')
+      puts 'exonerate algorithm'
+      true_query_PT_construct()
+      constraint_query = constraint_predicate_construct()
+      allcolumns_construct()
+      tuple_mutation_test(missinPK,'M',constraint_query)
+      tuple_mutation_test(unWantedPK,'U',constraint_query)
+    else
+      puts 'baseline'
+    end
     # remove constraint_nodes in node_query_mapping
     query = "delete from node_query_mapping where test_id = #{@test_id} and type = 't'"
     DBConn.exec(query)

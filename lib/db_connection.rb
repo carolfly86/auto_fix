@@ -9,7 +9,20 @@ module DBConn
 	def DBConn.exec(query)
 		@conn.exec(query)  
 	end
-
+  def DBConn.exec_script(script)
+    # file = File.open(script, "r")
+    # contents = file.read
+    # pp contents
+   system("psql -d#{@cfg['default']['database']} < #{script}")
+    # file.close()
+  end
+  def DBConn.dump_golden_record(script)
+    # file = File.open(script, "r")
+    # contents = file.read
+    # pp "pg_dump -t golden_record #{@cfg['default']['database']} > sql/golden_record/#{script}_gr.sql"
+    system("pg_dump -t golden_record #{@cfg['default']['database']} > sql/golden_record/#{script}_gr.sql")
+    # file.close()
+  end
   def DBConn.tblCreation(tblName, pkList, query)
     q = QueryBuilder.create_tbl(tblName, pkList, query)
     # puts q

@@ -1,4 +1,4 @@
-def queryTest(script)
+def queryTest(script,golden_record_opr,is_baseline)
 	query_json = JSON.parse(File.read("sql/#{script}.json"))
 	create_test_result_tbl()
 	f_options_list = []
@@ -28,18 +28,29 @@ def queryTest(script)
 	# tqueryObj = QueryObj.new(t_options)
 	# #
 	tqueryObj = QueryObj.new(t_options)
-
-	create_golden_record(tqueryObj)
-	puts "Please verify golden record: verified (Y), not verified(N)"
-	verified = gets.chomp
-	abort('not verified')unless verified == 'Y'
-
+	if golden_record_opr == 'c'
+		create_golden_record(tqueryObj)
+		puts "Please verify golden record: verified (Y), not verified(N)"
+		verified = STDIN.gets.chomp
+		if verified == 'Y'
+			DBConn.dump_golden_record(script)
+		else
+			abort('not verified')
+		end
+	elsif golden_record_opr == 'i'
+		query = 'drop table IF EXISTS golden_record;'
+		DBConn.exec(query)
+		gr_script = "sql/golden_record/#{script}_gr.sql"
+		DBConn.exec_script(gr_script)
+		# abort('test')
+	end
+	# pp 'test'
 	f_options_list.each_with_index do |f_options,idx|
 		puts "begin test"
 		beginTime = Time.now
 		fqueryObj = QueryObj.new(f_options)
 		localizeErr = LozalizeError.new(fqueryObj,tqueryObj)
-		selectionErrList = localizeErr.selecionErr()
+		selectionErrList = localizeErr.selecionErr(is_baseline)
 		puts 'test end'
 		endTime = Time.now
 		m_u_tuple_count = localizeErr.missing_tuple_count + localizeErr.unwanted_tuple_count
