@@ -58,6 +58,7 @@ module QueryBuilder
     end
     def QueryBuilder.create_tbl(tblName, pkList, selectQuery)
       insertQuery = selectQuery.dup
+      # pp insertQuery
       insert = insertQuery.insert(insertQuery.downcase.index(' from '), " INTO #{tblName} ")
       pkCreate = pkList.to_s.empty? ? '' : "ALTER TABLE #{tblName} ADD PRIMARY KEY (#{pkList});" 
       query =  "DROP TABLE IF EXISTS #{tblName}; #{insert}; #{pkCreate}"

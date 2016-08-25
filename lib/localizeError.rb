@@ -68,6 +68,7 @@ class LozalizeError
     @fromCondStr = ReverseParseTree.fromClauseConstr(@fromPT)
     @whereStr = ReverseParseTree.whereClauseConst(@wherePT)
 
+    # pp @whereStr
     @missing_tuple_count = 0
     @unwanted_tuple_count = 0
     # create_t_f_union_table
@@ -371,14 +372,14 @@ class LozalizeError
     all_columns = DBConn.getAllRelFieldList(@fromPT)
     # @allColumnList = all_columns
     # pp @allColumnList
-    @all_column_combinations = []
+    # @all_column_combinations = []
 
-    max = all_columns.count()
-    1.upto(max) do |i|
-      all_columns.combination(i).each do |cc|
-        @all_column_combinations << cc.to_set
-      end
-    end
+    # max = all_columns.count()
+    # 1.upto(max) do |i|
+    #   all_columns.combination(i).each do |cc|
+    #     @all_column_combinations << cc.to_set
+    #   end
+    # end
     @column_combinations = Columns_Combination.new(all_columns)
     # pp @allColumnList
     @allColumns_select = all_columns.map do |field|
@@ -480,6 +481,8 @@ class LozalizeError
         # binding.pry
         #col = ReverseParseTree.find_col_by_name(@ps['SELECT']['targetList'], c)['fullname']
         col = ReverseParseTree.find_col_by_name(@fPS['SELECT']['targetList'], c)
+        # pp @fPS['SELECT']['targetList']
+        # abort('test')
         h['val'] = r[c]
         h['alias'] = col['alias']
         h['col'] = col['col']
@@ -533,6 +536,7 @@ class LozalizeError
 
       @predicateTree.branches.each do |branch|
         branchQuery = selectQuery + QueryBuilder.pkCondConstr(pk)
+        # pp pk
         nodeQuery = branchQuery
         pkVal = QueryBuilder.pkValConstr(pk)
         # pp'branch'

@@ -277,7 +277,6 @@ class TupleMutation
 				# mutationTbl_create()
 				mutationTbl_upd(bn_pair,updateTup)
 
-
 				excluded=DBConn.exec(@excluded_query)
 				if excluded.count() >0
 					1.upto(i) do |j|
@@ -291,10 +290,10 @@ class TupleMutation
 						nd['location'] = 0
 						nd['type'] = 'f'
 						nodes <<nd
-						# if i >1
-						# 	binding.pry
-						# 	abort('test')
-						# end
+						if i >1
+							binding.pry
+							abort('test')
+						end
 						# abort('test')
 						# if there's only one branch
 						# And if the missing branch containing same set of columns as the existing branch
@@ -409,20 +408,16 @@ class TupleMutation
 
 				# # bn['cols'].split(',').each do |col|
 				# pp bn
-				# binding.pry
 				# pp bn['cols']
-				if bn['cols'].to_a.any?{|col| key == "#{col.relname}_#{col.colname}" }
-					# pp 'replace'
-					# pp key
-					# pp original_value
-					# pp updateTup[0][key]
-					"#{updateTup[0][key].to_s.str_int_rep} as #{key}"
+				if bn['cols'].to_a.any?{|col| key == col.renamed_colname }
+					val = updateTup[0][key].nil? ? 'NULL' : updateTup[0][key].to_s.str_int_rep
+					"#{val} as #{key}"
 				else
-					# pp 'nonreplace'
-					# pp key
-					"#{original_value.to_s.str_int_rep} as #{key} "
+
+					val = original_value.nil? ? 'NULL' : original_value.to_s.str_int_rep
+					"#{val} as #{key} "
 				end
-				# end
+				# binding.pry if original_value.nil? || updateTup[0][key].nil?
 			end.join(',')
 			mutation_columns = bn['cols'].to_a.map{|c| c.fullname}.join(',')
 			query = query + "INSERT INTO #{@mutation_tbl} select #{@renamedPKCol},'#{bn['branches']}' as mutation_branches,'#{bn['nodes']}' as mutation_nodes, '#{mutation_columns}' as mutation_cols ,#{insert_tup} ;"
@@ -467,7 +462,8 @@ class TupleMutation
 					column_set = node.columns.to_set
 					bn['cols']= column_set
 					# bn['cols'] = bn['cols'] + ( idx >0 ? "," : "") + "#{cols_strip_relalias.join(',')}"
-					@remaining_cols.delete(column_set)
+					# pp node
+					# @remaining_cols.delete(column_set)
 				else
 					if ith_combination == 1
 						br.nodes.each do |nd|
@@ -477,6 +473,7 @@ class TupleMutation
 							# bn1['cols'] = "#{nd.columns.join(',')}"
 							column_set = nd.columns.to_set
 							bn1['cols'] = column_set
+							# pp nd
 							@remaining_cols.delete(column_set)
 
 							bn_pairs << bn1
@@ -496,6 +493,7 @@ class TupleMutation
 			end
 			if bn['cols'].count() > 0
 			 	bn_pairs << bn
+			 	# pp 'delete again'
 				@remaining_cols.delete(bn['cols'])
 			end
 

@@ -5,7 +5,7 @@ class String
 
   def str_int_rep
     # p self
-    self.is_integer? ? self : "'#{self}'" 
+    self.is_integer? ? self : "'"+self.gsub("'","''")+"'"
   end
 
   def is_number?

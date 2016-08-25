@@ -22,7 +22,7 @@
 		"relevent": ["PH0-N3"]
 		},
 		{
-		"query": "SELECT a.addressid,s.stateprovinceid, a.addressline1, a.addressline2, a.city, a.postalcode, s.countryregioncode FROM address AS a JOIN stateprovince AS s ON a.stateprovinceid = s.stateprovinceid WHERE s.countryregioncode NOT IN ('US') AND a.city LIKE 'Pa%';",
+		"query": "SELECT a.addressid,s.stateprovinceid, a.addressline1, a.addressline2, a.city, a.postalcode, s.countryregioncode FROM address AS a JOIN stateprovince AS s ON a.stateprovinceid = s.stateprovinceid WHERE s.countryregioncode NOT IN ('US') AND a.modifieddate > '2008-04-30 00:00:00';",
 		"pkList": "addressid,stateprovinceid",
 		"relevent": ["PH0-missing_node1"]
 		},

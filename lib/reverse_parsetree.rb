@@ -132,9 +132,10 @@ module ReverseParseTree
 
   # where clause construct
   def ReverseParseTree.whereClauseConst(where)
+    # pp where
     if where.nil?
       return ''
-    end  
+    end
     if where.kind_of?(Array)
       exprArray =[]
       where.each do |w|
@@ -145,7 +146,6 @@ module ReverseParseTree
     else
       expr = whereClauseConstr_sub(where)
     end
-    
   end
 
   def ReverseParseTree.whereClauseConstr_sub(where)
@@ -225,7 +225,8 @@ module ReverseParseTree
     columns
   end
   def ReverseParseTree.fromClauseConstr(fromPT)
-    #pp fromPT
+    # pp fromPT
+    # abort('test')
     if fromPT[0]['JOINEXPR'].nil?
       fromClause = relnameConstr(fromPT[0]['RANGEVAR'])['fullname']
     else
