@@ -152,12 +152,18 @@ module ReverseParseTree
     logicOpr = where.keys[0].to_s
     lexpr = where[logicOpr]['lexpr']
     rexpr = where[logicOpr]['rexpr']
-
-    if logicOpr == 'AEXPR'
+    if logicOpr == 'AEXPR' 
       op = where[logicOpr]['name'][0]
       lexpr = lexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(lexpr) : exprConstr(lexpr)
       rexpr = rexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(rexpr) : exprConstr(rexpr)
       expr = lexpr.to_s + ' '+ op +' '+ rexpr.to_s
+    elsif logicOpr == 'AEXPR IN'
+      op = where[logicOpr]['name'][0] == '<>' ? 'NOT IN' : 'IN'
+      lexpr = lexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(lexpr) : exprConstr(lexpr)
+      rexpr = rexpr.map do |val|
+                exprConstr(val)
+              end.join(',')
+      expr = lexpr.to_s + ' '+ op +' ('+ rexpr.to_s+' )'
     elsif logicOpr == 'A_CONST'
       exprConstr(where)
     else
@@ -203,11 +209,12 @@ module ReverseParseTree
     columns = []
     #pp wherePT
     logicOpr = expr.keys[0].to_s
-    # p logicOpr
-    if ( logicOpr == 'AEXPR')
+    if logicOpr == 'AEXPR'
       columns += columnsInPredicate(expr[logicOpr]['lexpr'])
       columns += columnsInPredicate(expr[logicOpr]['rexpr'])
     # or operator are tested as a whole
+    elsif logicOpr == 'AEXPR IN'
+      columns += columnsInPredicate(expr[logicOpr]['lexpr'])
     else
       unless expr['COLUMNREF'].nil?
         # col = expr['COLUMNREF']['fields'].join('.')
