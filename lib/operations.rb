@@ -1,5 +1,6 @@
 def queryTest(script,golden_record_opr,is_baseline)
-	query_json = JSON.parse(File.read("sql/#{script}.json"))
+	dbname = script.split('_')[0]
+	query_json = JSON.parse(File.read("sql/#{dbname}/#{script}.json"))
 	create_test_result_tbl()
 	f_options_list = []
 	t_options = Hash.new()
@@ -28,6 +29,8 @@ def queryTest(script,golden_record_opr,is_baseline)
 	# tqueryObj = QueryObj.new(t_options)
 	# #
 	tqueryObj = QueryObj.new(t_options)
+	# pp tqueryObj.parseTree
+	# return
 	if golden_record_opr == 'c'
 		create_golden_record(tqueryObj)
 		puts "Please verify golden record: verified (Y), not verified(N)"
@@ -49,6 +52,7 @@ def queryTest(script,golden_record_opr,is_baseline)
 		puts "begin test"
 		beginTime = Time.now
 		fqueryObj = QueryObj.new(f_options)
+
 		localizeErr = LozalizeError.new(fqueryObj,tqueryObj)
 		selectionErrList = localizeErr.selecionErr(is_baseline)
 		puts 'test end'
@@ -143,7 +147,7 @@ end
 def create_test_result_tbl()
 	query =  %Q(DROP TABLE if exists test_result;
 	CREATE TABLE test_result
-	(test_id int, fquery text, tquery text, m_u_tuple_count bigint, duration bigint, total_score bigint, harmonic_mean float(2), jaccard float(2));)
+	(test_id int, fquery text, tquery text, m_u_tuple_count bigint, duration bigint, total_score bigint, harmonic_mean float(2), jaccard float(2), column_cnt int);)
   	 # pp query
     DBConn.exec(query)
 
@@ -164,6 +168,7 @@ def update_test_result_tbl(test_id,fquery,tquery,m_u_tuple_count,duration,total_
 				#{m_u_tuple_count},
 				#{duration},
 				#{total_score},
+				0,
 				0,
 				0
 			)
@@ -207,7 +212,11 @@ def update_test_result_tbl(test_id,fquery,tquery,m_u_tuple_count,duration,total_
     harmonic_mean = accuracy.harmonic_mean
     jaccard = accuracy.jaccard
 
-    query = "update test_result set harmonic_mean = #{harmonic_mean}, jaccard = #{jaccard} where test_id = #{test_id}"
+    query = QueryBuilder.find_cols_by_data_typcategory('golden_record')
+    res = DBConn.exec(query)
+    column_cnt = res.count()-2
+
+    query = "update test_result set harmonic_mean = #{harmonic_mean}, jaccard = #{jaccard}, column_cnt = #{column_cnt} where test_id = #{test_id}"
     res = DBConn.exec(query)
 end
 

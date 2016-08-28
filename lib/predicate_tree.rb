@@ -143,8 +143,7 @@ class PredicateTree
       nodeName= "N#{@node_count}"
       h =  Hash.new
       h['query'] = ReverseParseTree.whereClauseConst(wherePT)
-      # pp wherePT
-      h['location'] = wherePT[logicOpr]['location']
+      h['location'] = logicOpr == 'NULLTEST' ? wherePT[logicOpr]['arg']['COLUMNREF']['location'] : wherePT[logicOpr]['location']
       h['columns'] = []
       cols = ReverseParseTree.columnsInPredicate(wherePT)
       # convert string to Column object
@@ -212,6 +211,7 @@ class PredicateTree
         nodeName=nd.name
         columnsArray=nd.columns.map{|c| "'"+(c.relalias.nil? ? '' : c.relalias+'.')+c.colname+"'"}.join(',')
         query = "INSERT INTO #{@nqTblName} values (#{@test_id} ,'#{br.name}','#{nd.name}', '#{nd.query.gsub(/'/,'\'\'')}',#{nd.location}, ARRAY[#{columnsArray}], #{nd.suspicious_score} , '#{@type}' )"
+        # pp query
         DBConn.exec(query)
       end
     end

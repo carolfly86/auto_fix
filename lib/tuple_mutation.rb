@@ -195,16 +195,17 @@ class TupleMutation
 					nd = Hash.new()
 					nd['branch_name'] = @branches[0].name
 					nd['node_name'] = "missing_node#{i}"
-					# if i >1
-					# 	binding.pry
-					# 	abort('test')
-					# end
+
 					nd['columns'] = "{#{satisfied.map{|e| e['mutation_cols']}.join(',')}}"
 					nd['query'] =''
 					nd['location'] = 0
 					nd['type'] = 'f'
 					blm_nodes <<nd
 
+					# if satisfied.count >1
+					# 	binding.pry
+					# 	abort('test')
+					# end
 
 					blame_nodes(blm_nodes)
 					# end
@@ -228,10 +229,12 @@ class TupleMutation
 		# @remaining_cols=@all_column_combinations.clone
 		max = @branches.count()
 		updateTup = get_first_exludedPK()
+		# binding.pry
 		1.upto(max) do |i|
 			bn_pair = missing_branch_node_pairs(i)
 			# mutationTbl_create()
 			mutationTbl_upd(bn_pair,updateTup)
+			# binding.pry
 			# pp @constraintPredicateQuery
 			satisfied=DBConn.exec(@constraintPredicateQuery)
 			if satisfied.count() >0
@@ -277,7 +280,6 @@ class TupleMutation
 				# mutationTbl_create()
 				mutationTbl_upd(bn_pair,updateTup)
 
-
 				excluded=DBConn.exec(@excluded_query)
 				if excluded.count() >0
 					1.upto(i) do |j|
@@ -295,18 +297,21 @@ class TupleMutation
 						# 	binding.pry
 						# 	abort('test')
 						# end
-						# abort('test')
 						# if there's only one branch
-						# And if the missing branch containing same set of columns as the existing branch
+						# or if the missing branch containing same set of columns as the existing branch
 						# then we cannot exonerate
-						if @branches.count == 1
+						old_cols = @branches.map{|b| b.columns}.flatten.map{|c| "#{c.relname}.#{c.colname}"}
+						new_cols = excluded.map{|e| e['mutation_cols'].split(',')}.flatten.uniq
+
+						if @branches.count == 1 || (old_cols-new_cols).empty?
 							# binding.pry
-							old_cols = @branches[0].columns.map{|c| "#{c.renamed_colname}"}.join(',')
+							# old_cols = @branches[0].columns.map{|c| "#{c.renamed_colname}"}.join(',')
 							puts 'No need to exonerate'
 							found = true
 							# @remaining_cols.recover_processed(i)
 							return
 						end
+
 						blame_nodes(nodes)
 					end
 					# @remaining_cols.recover_processed(i)
@@ -334,6 +339,8 @@ class TupleMutation
 		query = "select #{@allColumns_renamed} from golden_record where type = 'excluded';"
 		# pp query
 		res = DBConn.exec(query)
+		abort('Cannot find excluded tuple!') if res.ntuples==0
+		res
 	end
 	# excluded pk is in the table
 	# but not in t_restul or f_result
@@ -345,6 +352,9 @@ class TupleMutation
 		# end.join(',')
 		query = "select #{@allColumns_renamed} from golden_record where type = 'satisfied' and branch = '#{@branches[0].name}';"
 		res = DBConn.exec(query)
+		abort("Cannot find satisfied tuple at #{@branches[0].name}!") if res.ntuples==0
+		res
+
 	end
 
 	def is_satisfied?()
@@ -409,20 +419,19 @@ class TupleMutation
 
 				# # bn['cols'].split(',').each do |col|
 				# pp bn
-				# binding.pry
+				# pp "bn['cols'] "
 				# pp bn['cols']
-				if bn['cols'].to_a.any?{|col| key == "#{col.relname}_#{col.colname}" }
-					# pp 'replace'
-					# pp key
-					# pp original_value
-					# pp updateTup[0][key]
-					"#{updateTup[0][key].to_s.str_int_rep} as #{key}"
+				# pp 'updateTup'
+				# pp updateTup
+				if bn['cols'].to_a.any?{|col| key == col.renamed_colname }
+					val = updateTup[0][key].nil? ? 'NULL' : updateTup[0][key].to_s.str_int_rep
+					"#{val} as #{key}"
 				else
-					# pp 'nonreplace'
-					# pp key
-					"#{original_value.to_s.str_int_rep} as #{key} "
+
+					val = original_value.nil? ? 'NULL' : original_value.to_s.str_int_rep
+					"#{val} as #{key} "
 				end
-				# end
+				# binding.pry if original_value.nil? || updateTup[0][key].nil?
 			end.join(',')
 			mutation_columns = bn['cols'].to_a.map{|c| c.fullname}.join(',')
 			query = query + "INSERT INTO #{@mutation_tbl} select #{@renamedPKCol},'#{bn['branches']}' as mutation_branches,'#{bn['nodes']}' as mutation_nodes, '#{mutation_columns}' as mutation_cols ,#{insert_tup} ;"
@@ -467,7 +476,8 @@ class TupleMutation
 					column_set = node.columns.to_set
 					bn['cols']= column_set
 					# bn['cols'] = bn['cols'] + ( idx >0 ? "," : "") + "#{cols_strip_relalias.join(',')}"
-					@remaining_cols.delete(column_set)
+					# pp node
+					# @remaining_cols.delete(column_set)
 				else
 					if ith_combination == 1
 						br.nodes.each do |nd|
@@ -477,6 +487,7 @@ class TupleMutation
 							# bn1['cols'] = "#{nd.columns.join(',')}"
 							column_set = nd.columns.to_set
 							bn1['cols'] = column_set
+							# pp nd
 							@remaining_cols.delete(column_set)
 
 							bn_pairs << bn1
@@ -496,6 +507,7 @@ class TupleMutation
 			end
 			if bn['cols'].count() > 0
 			 	bn_pairs << bn
+			 	# pp 'delete again'
 				@remaining_cols.delete(bn['cols'])
 			end
 

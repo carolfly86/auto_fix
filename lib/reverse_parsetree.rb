@@ -132,9 +132,10 @@ module ReverseParseTree
 
   # where clause construct
   def ReverseParseTree.whereClauseConst(where)
+    # pp where
     if where.nil?
       return ''
-    end  
+    end
     if where.kind_of?(Array)
       exprArray =[]
       where.each do |w|
@@ -145,19 +146,29 @@ module ReverseParseTree
     else
       expr = whereClauseConstr_sub(where)
     end
-    
   end
 
   def ReverseParseTree.whereClauseConstr_sub(where)
     logicOpr = where.keys[0].to_s
     lexpr = where[logicOpr]['lexpr']
     rexpr = where[logicOpr]['rexpr']
-
-    if logicOpr == 'AEXPR'
+    if logicOpr == 'AEXPR' 
       op = where[logicOpr]['name'][0]
       lexpr = lexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(lexpr) : exprConstr(lexpr)
       rexpr = rexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(rexpr) : exprConstr(rexpr)
       expr = lexpr.to_s + ' '+ op +' '+ rexpr.to_s
+    elsif logicOpr == 'NULLTEST'
+      # binding.pry
+      colname =  exprConstr( where[logicOpr]['arg'] )
+      op = where[logicOpr]['nulltesttype'] == 1 ? ' IS NOT NULL' : ' IS NULL'
+      expr = colname+ op
+    elsif logicOpr == 'AEXPR IN'
+      op = where[logicOpr]['name'][0] == '<>' ? 'NOT IN' : 'IN'
+      lexpr = lexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(lexpr) : exprConstr(lexpr)
+      rexpr = rexpr.map do |val|
+                exprConstr(val)
+              end.join(',')
+      expr = lexpr.to_s + ' '+ op +' ('+ rexpr.to_s+' )'
     elsif logicOpr == 'A_CONST'
       exprConstr(where)
     else
@@ -203,11 +214,14 @@ module ReverseParseTree
     columns = []
     #pp wherePT
     logicOpr = expr.keys[0].to_s
-    # p logicOpr
-    if ( logicOpr == 'AEXPR')
+    if logicOpr == 'AEXPR'
       columns += columnsInPredicate(expr[logicOpr]['lexpr'])
       columns += columnsInPredicate(expr[logicOpr]['rexpr'])
     # or operator are tested as a whole
+    elsif logicOpr == 'AEXPR IN'
+      columns += columnsInPredicate(expr[logicOpr]['lexpr'])
+    elsif logicOpr == 'NULLTEST'
+      columns += columnsInPredicate(expr[logicOpr]['arg'])
     else
       unless expr['COLUMNREF'].nil?
         # col = expr['COLUMNREF']['fields'].join('.')
@@ -218,7 +232,8 @@ module ReverseParseTree
     columns
   end
   def ReverseParseTree.fromClauseConstr(fromPT)
-    #pp fromPT
+    # pp fromPT
+    # abort('test')
     if fromPT[0]['JOINEXPR'].nil?
       fromClause = relnameConstr(fromPT[0]['RANGEVAR'])['fullname']
     else
