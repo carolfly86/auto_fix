@@ -157,6 +157,11 @@ module ReverseParseTree
       lexpr = lexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(lexpr) : exprConstr(lexpr)
       rexpr = rexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(rexpr) : exprConstr(rexpr)
       expr = lexpr.to_s + ' '+ op +' '+ rexpr.to_s
+    elsif logicOpr == 'NULLTEST'
+      # binding.pry
+      colname =  exprConstr( where[logicOpr]['arg'] )
+      op = where[logicOpr]['nulltesttype'] == 1 ? ' IS NOT NULL' : ' IS NULL'
+      expr = colname+ op
     elsif logicOpr == 'AEXPR IN'
       op = where[logicOpr]['name'][0] == '<>' ? 'NOT IN' : 'IN'
       lexpr = lexpr.keys[0].to_s == 'AEXPR'? whereClauseConst(lexpr) : exprConstr(lexpr)
@@ -215,6 +220,8 @@ module ReverseParseTree
     # or operator are tested as a whole
     elsif logicOpr == 'AEXPR IN'
       columns += columnsInPredicate(expr[logicOpr]['lexpr'])
+    elsif logicOpr == 'NULLTEST'
+      columns += columnsInPredicate(expr[logicOpr]['arg'])
     else
       unless expr['COLUMNREF'].nil?
         # col = expr['COLUMNREF']['fields'].join('.')

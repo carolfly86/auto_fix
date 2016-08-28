@@ -143,8 +143,7 @@ class PredicateTree
       nodeName= "N#{@node_count}"
       h =  Hash.new
       h['query'] = ReverseParseTree.whereClauseConst(wherePT)
-      # pp wherePT
-      h['location'] = wherePT[logicOpr]['location']
+      h['location'] = logicOpr == 'NULLTEST' ? wherePT[logicOpr]['arg']['COLUMNREF']['location'] : wherePT[logicOpr]['location']
       h['columns'] = []
       cols = ReverseParseTree.columnsInPredicate(wherePT)
       # convert string to Column object
