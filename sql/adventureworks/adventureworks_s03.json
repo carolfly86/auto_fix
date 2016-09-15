@@ -31,6 +31,12 @@
 		"query": "select salesorderid, salesorderdetailid from salesorderdetail where specialofferid =1 and ( unitprice > 1500 or productid>950)",
 		"pkList": "salesorderid, salesorderdetailid",
 		"relevent": ["PH0-N1","PH1-N1"]
+		},
+
+		{
+  		"query": "select salesorderid, salesorderdetailid from salesorderdetail where orderqty =1 and ( unitprice > 1500 or (productid>950 and modifieddate > '2014-01-01') );",
+		"pkList": "salesorderid, salesorderdetailid",
+		"relevent": ["PH1-N4"]
 		}
 	]
 

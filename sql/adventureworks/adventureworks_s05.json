@@ -30,6 +30,11 @@
 		"query": "select productid from product where daystomanufacture >1 or (safetystocklevel > 500 and reorderpoint > 700);",
 		"pkList": "productid",
 		"relevent": ["PH0-N1","PH1-N3"]
+		},
+		{
+		"query": "select productid from product where ( daystomanufacture >1 and listprice > 1000) or (safetystocklevel > 500 and reorderpoint > 700);",
+		"pkList": "productid",
+		"relevent": ["PH0-N2"]
 		}
 	]
 

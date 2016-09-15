@@ -83,7 +83,12 @@ class Columns_Combination
         bit_combination = int_presentation.to_s(2)
         query = %Q(insert into #{@table}
         select #{ith_combination} as ith_combination,
-        #{int_presentation} as int_presentation)
+        #{int_presentation} as int_presentation
+        where not exists 
+        (select ith_combination 
+        from #{@table} 
+        where ith_combination = #{ith_combination} 
+        and int_presentation = #{int_presentation}))
         # query = "update columns_combinations set processed = 1::bit where ith_combination = #{ith_combination} and int_presentation = #{int_presentation}"
         # pp query
         # pp column_set

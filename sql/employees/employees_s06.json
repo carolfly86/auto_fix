@@ -31,6 +31,12 @@
 		"pkList": "emp_no",
 		"relevent": ["PH1-N3","PH2-N4"]
 		}
+		,
+		{
+  		"query": "select emp_no,birth_date,first_name,last_name,gender,hire_date from employees where ( birth_date = '1954-09-26' and gender = 'M' ) or ( hire_date = '1990-08-21' and last_name like 'S%' )or birth_date ='1952-02-03';",
+		"pkList": "emp_no",
+		"relevent": ["PH1-N4"]
+		}
 	]
 
 }

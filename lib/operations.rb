@@ -49,10 +49,27 @@ def queryTest(script,golden_record_opr,is_baseline)
 	end
 	# pp 'test'
 	f_options_list.each_with_index do |f_options,idx|
+
+		fqueryObj = QueryObj.new(f_options)
+		if is_baseline == 'y'
+			beginTime = Time.now
+			tarantular = Tarantular.new(fqueryObj,tqueryObj,1)
+			tarantular.predicateTest()
+			endTime = Time.now
+			tarantular_duration = (endTime - beginTime).to_i
+			tarantular_rank = tarantular.relevence(f_options[:relevent])
+			total_test_cnt = tarantular.total_test_cnt
+		else
+			tarantular_duration = 0
+			tarantular_rank = {'tarantular_rank'=>'0', 'ochihai_rank'=>'0' }
+			total_test_cnt = 0
+		end
+		# pp tarantular_rank
+		# return
+		# tarantular_rank = tarantular.relevence(f_options[:relevent])
+		# return
 		puts "begin test"
 		beginTime = Time.now
-		fqueryObj = QueryObj.new(f_options)
-
 		localizeErr = LozalizeError.new(fqueryObj,tqueryObj)
 		selectionErrList = localizeErr.selecionErr(is_baseline)
 		puts 'test end'
@@ -64,7 +81,7 @@ def queryTest(script,golden_record_opr,is_baseline)
 		pp fqueryObj.score['totalScore']
 		duration = (endTime - beginTime).to_i
 		puts "duration: #{duration}"
-		update_test_result_tbl(idx,fqueryObj.query,tqueryObj.query,m_u_tuple_count,duration,fqueryObj.score['totalScore'],f_options[:relevent])
+		update_test_result_tbl(idx,fqueryObj.query,tqueryObj.query,m_u_tuple_count,duration,fqueryObj.score['totalScore'],f_options[:relevent],tarantular_rank,tarantular_duration,total_test_cnt)
 	end
 
 	# puts "begin fix"
@@ -147,7 +164,7 @@ end
 def create_test_result_tbl()
 	query =  %Q(DROP TABLE if exists test_result;
 	CREATE TABLE test_result
-	(test_id int, fquery text, tquery text, m_u_tuple_count bigint, duration bigint, total_score bigint, harmonic_mean float(2), jaccard float(2), column_cnt int);)
+	(test_id int, fquery text, tquery text, m_u_tuple_count bigint, duration bigint, total_score bigint, harmonic_mean float(2), jaccard float(2), column_cnt int, ochihai_rank varchar(50), tarantular_rank varchar(50), tarantular_duration int, total_test_cnt int);)
   	 # pp query
     DBConn.exec(query)
 
@@ -157,7 +174,7 @@ def create_test_result_tbl()
   	 # pp query
     DBConn.exec(query)
 end
-def update_test_result_tbl(test_id,fquery,tquery,m_u_tuple_count,duration,total_score,relevent)
+def update_test_result_tbl(test_id,fquery,tquery,m_u_tuple_count,duration,total_score,relevent,rank,tarantular_duration,total_test_cnt)
 
 	fquery = fquery.gsub("'","''")
 	tquery = tquery.gsub("'","''")
@@ -170,7 +187,12 @@ def update_test_result_tbl(test_id,fquery,tquery,m_u_tuple_count,duration,total_
 				#{total_score},
 				0,
 				0,
-				0
+				0,
+				'#{rank['ochihai_rank']}',
+				'#{rank['tarantular_rank']}',
+				#{tarantular_duration},
+				#{total_test_cnt}
+
 			)
 	# puts query
     DBConn.exec(query)

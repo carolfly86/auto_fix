@@ -30,6 +30,11 @@
 		"query": "select salesorderid from salesorderheader where (orderdate > '2012-08-31 00:00:00' and shipmethodid = 5) or (shipdate > '2012-05-31 00:00:00' and territoryid = 3);",
 		"pkList": "salesorderid",
 		"relevent": ["PH0-N1","PH1-N4"]
+		},
+		{
+  		"query": "select salesorderid from salesorderheader where (orderdate > '2012-05-31 00:00:00' and shipmethodid = 5 and subtotal>10) or (shipdate > '2012-05-31 00:00:00' and territoryid = 4);",
+		"pkList": "salesorderid",
+		"relevent": ["PH0-N3"]
 		}
 	]
 

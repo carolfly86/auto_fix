@@ -8,6 +8,7 @@ require 'json'
 require 'pry'
 require 'set'
 Dir["lib/*.rb","lib/*/*.rb"].each {|file|  require_relative file }
+# pg_ctl start -D/usr/local/var/postgres
 #./test_parse.rb -s employees_c05 -o t -g i -b y
 #./test_parse.rb -s employees_c05 -o t -g c -b n
 # Dir.glob("lib/*.rb").each {|file| puts file; require_relative file }
