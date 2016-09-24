@@ -67,8 +67,9 @@ class Columns_Combination
     def get_ith_combinations(i)
 
         # int_presentation_arry = @series_array.combination(i).to_a.map{|x| x.inject(0){ |product, n| product+ 2**n }}
+        
         query = "SELECT bit_comb as bit_combination FROM get_combinations(#{@cnt},#{i}) ;"
-
+        # puts query
         rst = DBConn.exec(query)
         col_combinations=[]
         rst.each do |r|

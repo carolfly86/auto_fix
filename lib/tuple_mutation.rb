@@ -288,7 +288,18 @@ class TupleMutation
 						# binding.pry
 						nd['branch_name'] = "missing_branch#{i}"
 						nd['node_name'] = "missing_node#{i}"
-						nd['columns'] = "{#{excluded.map{|e| e['mutation_cols']}.join(',')}}"
+
+						if excluded.count()>1
+							mu_cols = []
+							excluded.each{|e| mu_cols=mu_cols+e['mutation_cols'].split(',')}
+							mu_col_freq = mu_cols.inject(Hash.new(0)) { |h,v| h[v] += 1; h }
+							excluded_cols =mu_col_freq.max_by(i){|k,v| v}.map{|a| a[0]}.join(',')
+						else
+							excluded_cols=excluded[0]['mutation_cols']
+						end
+						# binding.pry
+						# abort
+						nd['columns'] = "{#{excluded_cols}}"
 						nd['query'] =''
 						nd['location'] = 0
 						nd['type'] = 'f'
